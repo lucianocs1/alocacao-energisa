@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { mockEmployees } from '@/data/mockData';
 import { EmployeeCard } from '@/components/team/EmployeeCard';
-import { Employee, CellType, CELL_COLORS } from '@/types/planner';
+import { CellType, CELL_COLORS } from '@/types/planner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Plus, Users } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { useCalendar } from '@/hooks/useCalendar';
 
 export default function TeamPage() {
   const [selectedCell, setSelectedCell] = useState<CellType | 'all'>('all');
+  const { getMonthCapacity } = useCalendar();
 
   const cells: (CellType | 'all')[] = ['all', 'Contábil', 'Fiscal', 'Societário', 'Trabalhista'];
 
@@ -17,10 +19,20 @@ export default function TeamPage() {
     ? mockEmployees 
     : mockEmployees.filter(e => e.cell === selectedCell);
 
-  const totalCapacity = mockEmployees.reduce((sum, e) => sum + e.monthlyCapacity, 0);
+  // Calculate total capacity using a reference month (January 2024)
+  const totalCapacity = mockEmployees.reduce((sum, e) => {
+    const capacity = getMonthCapacity(0, 2024, e);
+    return sum + capacity.totalHours;
+  }, 0);
+  
   const totalFixedHours = mockEmployees.reduce((sum, e) => 
     sum + e.fixedAllocations.reduce((s, f) => s + f.hoursPerMonth, 0), 0
   );
+
+  const totalAvailable = mockEmployees.reduce((sum, e) => {
+    const capacity = getMonthCapacity(0, 2024, e);
+    return sum + capacity.availableHours;
+  }, 0);
 
   return (
     <div className="p-6 space-y-6 fade-in">
@@ -39,7 +51,7 @@ export default function TeamPage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="flex items-center gap-4 p-4">
             <div className="p-3 rounded-lg bg-primary/10">
@@ -53,17 +65,21 @@ export default function TeamPage() {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Capacidade Mensal Total</p>
+            <p className="text-sm text-muted-foreground">Capacidade (Jan/24)</p>
             <p className="text-2xl font-bold">{totalCapacity}h</p>
+            <p className="text-xs text-muted-foreground">Varia por mês</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Horas Fixas/Mês</p>
             <p className="text-2xl font-bold">{totalFixedHours}h</p>
-            <p className="text-xs text-muted-foreground">
-              {Math.round((totalFixedHours / totalCapacity) * 100)}% da capacidade
-            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Disponível (Jan/24)</p>
+            <p className="text-2xl font-bold text-success">{totalAvailable}h</p>
           </CardContent>
         </Card>
       </div>

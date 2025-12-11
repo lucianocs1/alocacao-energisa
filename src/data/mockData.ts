@@ -1,4 +1,32 @@
-import { Employee, Project, Allocation, CellType } from '@/types/planner';
+import { Employee, Project, Allocation, Holiday, CalendarConfig } from '@/types/planner';
+
+// Global calendar configuration
+export const calendarConfig: CalendarConfig = {
+  dailyHours: 8,
+  holidays: [],
+};
+
+// Brazilian holidays for 2024/2025
+export const mockHolidays: Holiday[] = [
+  { id: 'hol-1', name: 'Ano Novo', date: new Date(2024, 0, 1), type: 'national' },
+  { id: 'hol-2', name: 'Carnaval', date: new Date(2024, 1, 12), type: 'national' },
+  { id: 'hol-3', name: 'Carnaval', date: new Date(2024, 1, 13), type: 'national' },
+  { id: 'hol-4', name: 'Sexta-feira Santa', date: new Date(2024, 2, 29), type: 'national' },
+  { id: 'hol-5', name: 'Tiradentes', date: new Date(2024, 3, 21), type: 'national' },
+  { id: 'hol-6', name: 'Dia do Trabalho', date: new Date(2024, 4, 1), type: 'national' },
+  { id: 'hol-7', name: 'Corpus Christi', date: new Date(2024, 4, 30), type: 'national' },
+  { id: 'hol-8', name: 'Independência', date: new Date(2024, 8, 7), type: 'national' },
+  { id: 'hol-9', name: 'Nossa Senhora Aparecida', date: new Date(2024, 9, 12), type: 'national' },
+  { id: 'hol-10', name: 'Finados', date: new Date(2024, 10, 2), type: 'national' },
+  { id: 'hol-11', name: 'Proclamação da República', date: new Date(2024, 10, 15), type: 'national' },
+  { id: 'hol-12', name: 'Natal', date: new Date(2024, 11, 25), type: 'national' },
+  // 2025
+  { id: 'hol-13', name: 'Ano Novo', date: new Date(2025, 0, 1), type: 'national' },
+  { id: 'hol-14', name: 'Carnaval', date: new Date(2025, 2, 3), type: 'national' },
+  { id: 'hol-15', name: 'Carnaval', date: new Date(2025, 2, 4), type: 'national' },
+];
+
+calendarConfig.holidays = mockHolidays;
 
 export const mockEmployees: Employee[] = [
   {
@@ -6,7 +34,7 @@ export const mockEmployees: Employee[] = [
     name: 'Igor Santos',
     role: 'Analista Sênior',
     cell: 'Fiscal',
-    monthlyCapacity: 160,
+    dailyHours: 8,
     vacations: [
       { id: 'vac-1', startDate: new Date(2024, 11, 20), endDate: new Date(2025, 0, 5) }
     ],
@@ -19,7 +47,7 @@ export const mockEmployees: Employee[] = [
     name: 'Marina Costa',
     role: 'Coordenadora',
     cell: 'Contábil',
-    monthlyCapacity: 160,
+    dailyHours: 8,
     vacations: [],
     fixedAllocations: []
   },
@@ -28,7 +56,7 @@ export const mockEmployees: Employee[] = [
     name: 'Carlos Silva',
     role: 'Analista Pleno',
     cell: 'Fiscal',
-    monthlyCapacity: 160,
+    dailyHours: 8,
     vacations: [
       { id: 'vac-2', startDate: new Date(2024, 6, 1), endDate: new Date(2024, 6, 15) }
     ],
@@ -41,7 +69,7 @@ export const mockEmployees: Employee[] = [
     name: 'Juliana Mendes',
     role: 'Analista Júnior',
     cell: 'Societário',
-    monthlyCapacity: 160,
+    dailyHours: 8,
     vacations: [],
     fixedAllocations: []
   },
@@ -50,7 +78,7 @@ export const mockEmployees: Employee[] = [
     name: 'Roberto Almeida',
     role: 'Gerente',
     cell: 'Trabalhista',
-    monthlyCapacity: 120,
+    dailyHours: 6, // Part-time example
     vacations: [],
     fixedAllocations: [
       { id: 'fix-3', name: 'Gestão de Equipe', hoursPerMonth: 40 }
@@ -61,7 +89,7 @@ export const mockEmployees: Employee[] = [
     name: 'Fernanda Lima',
     role: 'Analista Sênior',
     cell: 'Contábil',
-    monthlyCapacity: 160,
+    dailyHours: 8,
     vacations: [
       { id: 'vac-3', startDate: new Date(2024, 3, 10), endDate: new Date(2024, 3, 20) }
     ],
@@ -77,7 +105,8 @@ export const mockProjects: Project[] = [
     budgetHours: 500,
     allocatedHours: 320,
     color: 'hsl(175, 70%, 40%)',
-    priority: 'high'
+    priority: 'high',
+    ownerCell: 'Fiscal'
   },
   {
     id: 'proj-2',
@@ -86,7 +115,8 @@ export const mockProjects: Project[] = [
     budgetHours: 300,
     allocatedHours: 180,
     color: 'hsl(200, 70%, 50%)',
-    priority: 'medium'
+    priority: 'medium',
+    ownerCell: 'Fiscal'
   },
   {
     id: 'proj-3',
@@ -95,7 +125,8 @@ export const mockProjects: Project[] = [
     budgetHours: 400,
     allocatedHours: 450,
     color: 'hsl(38, 92%, 50%)',
-    priority: 'high'
+    priority: 'high',
+    ownerCell: 'Contábil'
   },
   {
     id: 'proj-4',
@@ -104,7 +135,8 @@ export const mockProjects: Project[] = [
     budgetHours: 250,
     allocatedHours: 100,
     color: 'hsl(280, 65%, 60%)',
-    priority: 'low'
+    priority: 'low',
+    ownerCell: 'Societário'
   },
   {
     id: 'proj-5',
@@ -113,14 +145,15 @@ export const mockProjects: Project[] = [
     budgetHours: 200,
     allocatedHours: 80,
     color: 'hsl(340, 75%, 55%)',
-    priority: 'medium'
+    priority: 'medium',
+    ownerCell: 'Trabalhista'
   },
 ];
 
 export const mockAllocations: Allocation[] = [
   { id: 'alloc-1', employeeId: 'emp-1', projectId: 'proj-1', month: 0, year: 2024, hours: 80 },
   { id: 'alloc-2', employeeId: 'emp-1', projectId: 'proj-2', month: 1, year: 2024, hours: 60 },
-  { id: 'alloc-3', employeeId: 'emp-2', projectId: 'proj-1', month: 0, year: 2024, hours: 100 },
+  { id: 'alloc-3', employeeId: 'emp-2', projectId: 'proj-1', month: 0, year: 2024, hours: 100, isCrossTeam: true }, // Contábil -> Fiscal project
   { id: 'alloc-4', employeeId: 'emp-2', projectId: 'proj-3', month: 2, year: 2024, hours: 120 },
   { id: 'alloc-5', employeeId: 'emp-3', projectId: 'proj-2', month: 0, year: 2024, hours: 40 },
   { id: 'alloc-6', employeeId: 'emp-3', projectId: 'proj-1', month: 1, year: 2024, hours: 80 },
