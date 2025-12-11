@@ -4,8 +4,8 @@ export interface Employee {
   id: string;
   name: string;
   role: string;
-  cell: CellType;
-  monthlyCapacity: number; // hours per month
+  cell: CellType; // Home team
+  dailyHours: number; // Default 8
   vacations: VacationPeriod[];
   fixedAllocations: FixedAllocation[];
 }
@@ -30,6 +30,7 @@ export interface Project {
   allocatedHours: number;
   color: string;
   priority: 'high' | 'medium' | 'low';
+  ownerCell: CellType; // The cell that owns the project
 }
 
 export interface Allocation {
@@ -39,12 +40,26 @@ export interface Allocation {
   month: number; // 0-11
   year: number;
   hours: number;
+  isCrossTeam?: boolean; // Marked when employee is from another cell
+}
+
+export interface Holiday {
+  id: string;
+  name: string;
+  date: Date;
+  type: 'national' | 'local';
+}
+
+export interface CalendarConfig {
+  dailyHours: number; // Global default (8h)
+  holidays: Holiday[];
 }
 
 export interface MonthlyCapacity {
   month: number;
   year: number;
-  totalCapacity: number;
+  workingDays: number;
+  totalCapacity: number; // workingDays * dailyHours
   allocatedHours: number;
   vacationHours: number;
   fixedHours: number;
@@ -62,6 +77,13 @@ export const CELL_COLORS: Record<CellType, string> = {
   'Fiscal': 'bg-chart-2',
   'Societário': 'bg-chart-3',
   'Trabalhista': 'bg-chart-4',
+};
+
+export const CELL_BORDER_COLORS: Record<CellType, string> = {
+  'Contábil': 'border-chart-1',
+  'Fiscal': 'border-chart-2',
+  'Societário': 'border-chart-3',
+  'Trabalhista': 'border-chart-4',
 };
 
 export const PROJECT_COLORS = [

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, Briefcase } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useCalendar } from '@/hooks/useCalendar';
 
 interface EmployeeCardProps {
   employee: Employee;
@@ -12,8 +13,13 @@ interface EmployeeCardProps {
 }
 
 export function EmployeeCard({ employee, onEdit }: EmployeeCardProps) {
+  const { getMonthCapacity } = useCalendar();
+  
+  // Get average monthly capacity (using a reference month)
+  const referenceCapacity = getMonthCapacity(0, 2024, employee);
   const totalFixedHours = employee.fixedAllocations.reduce((sum, f) => sum + f.hoursPerMonth, 0);
-  const availableHours = employee.monthlyCapacity - totalFixedHours;
+  const availableHours = referenceCapacity.availableHours;
+  const dailyHours = employee.dailyHours || 8;
 
   return (
     <Card className="card-glow transition-all duration-300 hover:shadow-lg cursor-pointer" onClick={onEdit}>
@@ -33,8 +39,8 @@ export function EmployeeCard({ employee, onEdit }: EmployeeCardProps) {
         <div className="flex items-center gap-3 text-sm">
           <Clock className="w-4 h-4 text-muted-foreground" />
           <div>
-            <span className="text-muted-foreground">Capacidade: </span>
-            <span className="font-medium">{employee.monthlyCapacity}h/mês</span>
+            <span className="text-muted-foreground">Jornada: </span>
+            <span className="font-medium">{dailyHours}h/dia</span>
           </div>
         </div>
 
@@ -78,9 +84,12 @@ export function EmployeeCard({ employee, onEdit }: EmployeeCardProps) {
         {/* Available Hours */}
         <div className="pt-2 border-t border-border">
           <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">Disponível/mês</span>
+            <span className="text-sm text-muted-foreground">Disponível/mês (ref.)</span>
             <span className="text-lg font-semibold text-success">{availableHours}h</span>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Varia conforme dias úteis do mês
+          </p>
         </div>
       </CardContent>
     </Card>
