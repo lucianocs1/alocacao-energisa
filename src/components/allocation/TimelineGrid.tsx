@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Employee, Project, Allocation, MONTHS, CELL_COLORS, CELL_BORDER_COLORS, CellType } from '@/types/planner';
+import { Employee, Demand, Allocation, MONTHS } from '@/types/planner';
 import { CapacityBar } from './CapacityBar';
 import { AllocationBlock } from './AllocationBlock';
+import { getPhaseForMonth } from './GanttBar';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Umbrella, UserPlus, ExternalLink } from 'lucide-react';
@@ -24,13 +25,14 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useCalendar } from '@/hooks/useCalendar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useTeam } from '@/contexts/TeamContext';
+import { mockProjects } from '@/data/mockData';
 
 interface TimelineGridProps {
   employees: Employee[];
-  projects: Project[];
+  demands: Demand[];
   allocations: Allocation[];
-  currentCell?: CellType; // For filtering by cell view
-  guestEmployees?: Employee[]; // Cross-team employees added to this view
+  guestEmployees?: Employee[]; // Employees borrowed from other teams
   onAddAllocation: (allocation: Omit<Allocation, 'id'>) => void;
   onRemoveAllocation: (id: string) => void;
   onAddGuestEmployee?: (employeeId: string) => void;
@@ -38,25 +40,25 @@ interface TimelineGridProps {
 
 export function TimelineGrid({ 
   employees, 
-  projects, 
+  demands, 
   allocations,
-  currentCell,
   guestEmployees = [],
   onAddAllocation,
   onRemoveAllocation,
   onAddGuestEmployee
 }: TimelineGridProps) {
   const [selectedCell, setSelectedCell] = useState<{ employeeId: string; month: number } | null>(null);
-  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [selectedDemandId, setSelectedDemandId] = useState<string>('');
   const [hours, setHours] = useState<string>('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [guestDialogOpen, setGuestDialogOpen] = useState(false);
   const [selectedGuestEmployee, setSelectedGuestEmployee] = useState<string>('');
 
   const { getMonthCapacity, getMonthInfo } = useCalendar();
+  const { selectedTeam, getTeamById, getTeamColor } = useTeam();
   const year = 2024;
 
-  // Combine home employees with guest employees
+  // Combine team employees with guest employees
   const allEmployees = useMemo(() => {
     const guestIds = new Set(guestEmployees.map(e => e.id));
     return [
@@ -65,42 +67,8 @@ export function TimelineGrid({
     ];
   }, [employees, guestEmployees]);
 
-  // Group employees by cell (home team)
-  const groupedEmployees = useMemo(() => {
-    const groups: Record<CellType, { home: Employee[]; guests: Employee[] }> = {
-      'Contábil': { home: [], guests: [] },
-      'Fiscal': { home: [], guests: [] },
-      'Societário': { home: [], guests: [] },
-      'Trabalhista': { home: [], guests: [] },
-    };
-    
-    // If currentCell is set, only show that cell's employees
-    if (currentCell) {
-      groups[currentCell].home = employees.filter(e => e.cell === currentCell);
-      groups[currentCell].guests = guestEmployees.filter(e => e.cell !== currentCell);
-    } else {
-      allEmployees.forEach(emp => {
-        const isGuest = guestEmployees.some(g => g.id === emp.id);
-        if (isGuest) {
-          // Guest shows under the cell they're visiting, not their home cell
-          // For now, show under their home cell with a badge
-          groups[emp.cell].guests.push(emp);
-        } else {
-          groups[emp.cell].home.push(emp);
-        }
-      });
-    }
-    
-    return groups;
-  }, [allEmployees, employees, guestEmployees, currentCell]);
-
-  // Available employees from other cells (for guest selection)
-  const availableExternalEmployees = useMemo(() => {
-    if (!currentCell) return [];
-    const currentIds = new Set([...employees.map(e => e.id), ...guestEmployees.map(e => e.id)]);
-    // In a real app, this would come from all employees not in currentCell
-    return employees.filter(e => e.cell !== currentCell && !currentIds.has(e.id));
-  }, [employees, guestEmployees, currentCell]);
+  // Identify which employees are guests (from other teams)
+  const guestEmployeeIds = useMemo(() => new Set(guestEmployees.map(e => e.id)), [guestEmployees]);
 
   const getEmployeeMonthData = (employee: Employee, month: number) => {
     const capacity = getMonthCapacity(month, year, employee);
@@ -138,7 +106,7 @@ export function TimelineGrid({
   };
 
   const handleAddAllocation = () => {
-    if (!selectedCell || !selectedProject || !hours) return;
+    if (!selectedCell || !selectedDemandId || !hours) return;
 
     const hoursNum = parseInt(hours);
     if (isNaN(hoursNum) || hoursNum <= 0) {
@@ -147,17 +115,38 @@ export function TimelineGrid({
     }
 
     const employee = allEmployees.find(e => e.id === selectedCell.employeeId);
-    const project = projects.find(p => p.id === selectedProject);
+    const demand = demands.find(d => d.id === selectedDemandId);
     
-    if (!employee || !project) return;
+    if (!employee || !demand) return;
 
     const monthData = getEmployeeMonthData(employee, selectedCell.month);
     const newTotal = monthData.totalAllocated + hoursNum;
     const available = monthData.capacity.availableHours;
     const monthInfo = getMonthInfo(selectedCell.month, year);
 
-    // Check if this is a cross-team allocation
-    const isCrossTeam = currentCell ? employee.cell !== currentCell : false;
+    // Check if this is a loan (employee from different team than the demand)
+    const isLoan = employee.teamId !== demand.teamId;
+
+    // Check phase for the selected month
+    const phaseForMonth = getPhaseForMonth(demand.phases, selectedCell.month, year);
+    
+    // Alert for Go-Live period
+    if (phaseForMonth?.isMilestone || phaseForMonth?.type === 'go-live') {
+      toast.warning(
+        `⚠️ ATENÇÃO: ${MONTHS[selectedCell.month]} é período de GO-LIVE! ` +
+        `Certifique-se de que o recurso estará 100% disponível. Férias não recomendadas.`,
+        { duration: 6000 }
+      );
+    }
+
+    // Alert for Assisted Operation (less hours needed)
+    if (phaseForMonth?.type === 'assisted-operation' && hoursNum > available * 0.5) {
+      toast.info(
+        `💡 Dica: ${MONTHS[selectedCell.month]} é período de Operação Assistida. ` +
+        `Geralmente requer menos horas (suporte). Você alocou ${hoursNum}h.`,
+        { duration: 5000 }
+      );
+    }
 
     if (newTotal > available) {
       const excess = newTotal - available;
@@ -170,17 +159,20 @@ export function TimelineGrid({
 
     onAddAllocation({
       employeeId: selectedCell.employeeId,
-      projectId: selectedProject,
+      demandId: selectedDemandId,
+      projectId: demand.projectId,
       month: selectedCell.month,
       year,
       hours: hoursNum,
-      isCrossTeam,
+      isLoan,
+      sourceTeamId: isLoan ? employee.teamId : undefined,
     });
 
-    toast.success(`${hoursNum}h alocadas para ${project.name}${isCrossTeam ? ' (recurso externo)' : ''}`);
+    const employeeTeam = getTeamById(employee.teamId);
+    toast.success(`${hoursNum}h alocadas para ${demand.name}${isLoan ? ` (empréstimo de ${employeeTeam?.name})` : ''}`);
     setDialogOpen(false);
     setSelectedCell(null);
-    setSelectedProject('');
+    setSelectedDemandId('');
     setHours('');
   };
 
@@ -189,60 +181,64 @@ export function TimelineGrid({
     onAddGuestEmployee(selectedGuestEmployee);
     setGuestDialogOpen(false);
     setSelectedGuestEmployee('');
-    toast.success('Recurso externo adicionado');
+    toast.success('Recurso emprestado adicionado');
   };
 
-  const renderEmployeeRow = (employee: Employee, isGuest: boolean = false) => (
-    <div 
-      key={employee.id}
-      className={cn(
-        "flex border-t border-border/50 hover:bg-muted/20 transition-colors",
-        isGuest && "bg-muted/10"
-      )}
-    >
-      {/* Employee Info */}
-      <div className={cn(
-        "w-56 flex-shrink-0 p-3 border-r border-border",
-        isGuest && `border-l-4 ${CELL_BORDER_COLORS[employee.cell]}`
-      )}>
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-sm">{employee.name}</span>
-            {isGuest && (
-              <Tooltip>
-                <TooltipTrigger>
-                  <ExternalLink className="w-3 h-3 text-muted-foreground" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  Recurso externo de {employee.cell}
-                </TooltipContent>
-              </Tooltip>
+  const renderEmployeeRow = (employee: Employee, isGuest: boolean = false) => {
+    const employeeTeam = getTeamById(employee.teamId);
+    const teamColor = getTeamColor(employee.teamId);
+    
+    return (
+      <div 
+        key={employee.id}
+        className={cn(
+          "flex border-t border-border/50 hover:bg-muted/20 transition-colors",
+          isGuest && "bg-muted/10"
+        )}
+      >
+        {/* Employee Info */}
+        <div className={cn(
+          "w-56 flex-shrink-0 p-3 border-r border-border",
+          isGuest && `border-l-4 ${teamColor}`
+        )}>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-sm">{employee.name}</span>
+              {isGuest && (
+                <Tooltip>
+                  <TooltipTrigger>
+                    <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Emprestado de {employeeTeam?.name}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+            <span className="text-xs text-muted-foreground">{employee.role}</span>
+            {isGuest && employeeTeam && (
+              <Badge variant="outline" className={cn("text-[10px] w-fit text-white", teamColor)}>
+                {employeeTeam.name}
+              </Badge>
+            )}
+            {employee.fixedAllocations.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {employee.fixedAllocations.map(fa => (
+                  <Badge 
+                    key={fa.id} 
+                    variant="outline" 
+                    className="text-[10px] px-1.5 py-0"
+                  >
+                    {fa.name}
+                  </Badge>
+                ))}
+              </div>
             )}
           </div>
-          <span className="text-xs text-muted-foreground">{employee.role}</span>
-          {isGuest && (
-            <Badge variant="outline" className={cn("text-[10px] w-fit", CELL_COLORS[employee.cell], "text-primary-foreground")}>
-              {employee.cell}
-            </Badge>
-          )}
-          {employee.fixedAllocations.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1">
-              {employee.fixedAllocations.map(fa => (
-                <Badge 
-                  key={fa.id} 
-                  variant="outline" 
-                  className="text-[10px] px-1.5 py-0"
-                >
-                  {fa.name}
-                </Badge>
-              ))}
-            </div>
-          )}
         </div>
-      </div>
 
-      {/* Timeline Cells */}
-      {MONTHS.map((_, monthIdx) => {
+        {/* Timeline Cells */}
+        {MONTHS.map((_, monthIdx) => {
         const monthData = getEmployeeMonthData(employee, monthIdx);
         const monthInfo = getMonthInfo(monthIdx, year);
         
@@ -251,7 +247,7 @@ export function TimelineGrid({
             <TooltipTrigger asChild>
               <div 
                 className={cn(
-                  "flex-1 min-w-[80px] p-2 border-r border-border/50 last:border-r-0",
+                  "flex-1 min-w-[80px] p-2 border-r border-border/50 last:border-r-0 relative",
                   "cursor-pointer transition-colors",
                   monthData.isOnVacation ? "bg-capacity-blocked/20" : "hover:bg-accent/50"
                 )}
@@ -271,16 +267,19 @@ export function TimelineGrid({
                       showLabel={false}
                       size="sm"
                     />
-                    <div className="flex flex-wrap gap-1">
+                    {/* Allocations displayed side by side */}
+                    <div className="flex flex-row flex-wrap gap-1">
                       {monthData.allocations.map(alloc => {
-                        const project = projects.find(p => p.id === alloc.projectId);
-                        if (!project) return null;
+                        const demand = demands.find(d => d.id === alloc.demandId);
+                        const project = mockProjects.find(p => p.id === alloc.projectId);
+                        if (!demand || !project) return null;
                         return (
                           <AllocationBlock
                             key={alloc.id}
+                            demand={demand}
                             project={project}
                             hours={alloc.hours}
-                            isCrossTeam={alloc.isCrossTeam}
+                            isLoan={alloc.isLoan}
                             onRemove={() => onRemoveAllocation(alloc.id)}
                           />
                         );
@@ -306,9 +305,10 @@ export function TimelineGrid({
             </TooltipContent>
           </Tooltip>
         );
-      })}
-    </div>
-  );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="w-full overflow-x-auto">
@@ -317,7 +317,7 @@ export function TimelineGrid({
         <div className="flex border-b border-border sticky top-0 bg-background z-10">
           <div className="w-56 flex-shrink-0 p-3 font-medium text-sm border-r border-border flex items-center justify-between">
             <span>Recurso</span>
-            {currentCell && onAddGuestEmployee && (
+            {onAddGuestEmployee && (
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -350,43 +350,32 @@ export function TimelineGrid({
           })}
         </div>
 
-        {/* Body */}
-        {(Object.keys(groupedEmployees) as CellType[]).map(cell => {
-          const cellData = groupedEmployees[cell];
-          if (cellData.home.length === 0 && cellData.guests.length === 0) return null;
+        {/* Body - Team Employees */}
+        <div className="border-b border-border">
+          {/* Team Employees */}
+          {employees.map(employee => renderEmployeeRow(employee, false))}
           
-          return (
-            <div key={cell} className="border-b border-border">
-              {/* Cell Header */}
-              <div className="flex bg-muted/30">
-                <div className="w-56 flex-shrink-0 p-2 border-r border-border">
-                  <Badge variant="secondary" className={cn("text-xs", CELL_COLORS[cell], "text-primary-foreground")}>
-                    {cell}
-                  </Badge>
+          {/* Guest Employees (borrowed from other teams) */}
+          {guestEmployees.length > 0 && (
+            <>
+              <div className="flex bg-muted/10 border-t border-dashed border-border">
+                <div className="w-56 flex-shrink-0 p-1.5 px-3 border-r border-border">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                    Recursos Emprestados
+                  </span>
                 </div>
                 <div className="flex-1" />
               </div>
-
-              {/* Home Employees */}
-              {cellData.home.map(employee => renderEmployeeRow(employee, false))}
-              
-              {/* Guest Employees */}
-              {cellData.guests.length > 0 && (
-                <>
-                  <div className="flex bg-muted/10 border-t border-dashed border-border">
-                    <div className="w-56 flex-shrink-0 p-1.5 px-3 border-r border-border">
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                        Recursos Externos
-                      </span>
-                    </div>
-                    <div className="flex-1" />
-                  </div>
-                  {cellData.guests.map(employee => renderEmployeeRow(employee, true))}
-                </>
-              )}
+              {guestEmployees.map(employee => renderEmployeeRow(employee, true))}
+            </>
+          )}
+          
+          {employees.length === 0 && guestEmployees.length === 0 && (
+            <div className="flex items-center justify-center py-12 text-muted-foreground">
+              Nenhum recurso nesta equipe
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
 
       {/* Add Allocation Dialog */}
@@ -412,23 +401,26 @@ export function TimelineGrid({
                 })()}
               </div>
               <div className="space-y-2">
-                <Label>Projeto</Label>
-                <Select value={selectedProject} onValueChange={setSelectedProject}>
+                <Label>Demanda</Label>
+                <Select value={selectedDemandId} onValueChange={setSelectedDemandId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione um projeto" />
+                    <SelectValue placeholder="Selecione uma demanda" />
                   </SelectTrigger>
                   <SelectContent>
-                    {projects.map(project => (
-                      <SelectItem key={project.id} value={project.id}>
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: project.color }}
-                          />
-                          {project.name}
-                        </div>
-                      </SelectItem>
-                    ))}
+                    {demands.map(demand => {
+                      const project = mockProjects.find(p => p.id === demand.projectId);
+                      return (
+                        <SelectItem key={demand.id} value={demand.id}>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: project?.color || '#888' }}
+                            />
+                            <span className="truncate">{demand.name}</span>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -453,35 +445,18 @@ export function TimelineGrid({
       <Dialog open={guestDialogOpen} onOpenChange={setGuestDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Buscar Recurso Externo</DialogTitle>
+            <DialogTitle>Emprestar Recurso de Outra Equipe</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <p className="text-sm text-muted-foreground">
-              Adicione um recurso de outra célula para trabalhar em seus projetos.
+              Adicione um recurso de outra equipe para trabalhar em suas demandas.
               As horas alocadas serão somadas com as alocações do time de origem.
             </p>
-            <div className="space-y-2">
-              <Label>Funcionário</Label>
-              <Select value={selectedGuestEmployee} onValueChange={setSelectedGuestEmployee}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um recurso" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableExternalEmployees.map(emp => (
-                    <SelectItem key={emp.id} value={emp.id}>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={cn("text-[10px]", CELL_COLORS[emp.cell], "text-primary-foreground")}>
-                          {emp.cell}
-                        </Badge>
-                        {emp.name} - {emp.role}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button onClick={handleAddGuestEmployee} className="w-full">
-              Adicionar Recurso
+            <p className="text-sm text-muted-foreground italic">
+              (Funcionalidade em desenvolvimento - será possível buscar recursos de outras equipes)
+            </p>
+            <Button onClick={() => setGuestDialogOpen(false)} variant="outline" className="w-full">
+              Fechar
             </Button>
           </div>
         </DialogContent>

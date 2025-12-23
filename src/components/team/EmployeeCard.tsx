@@ -1,4 +1,4 @@
-import { Employee, CELL_COLORS } from '@/types/planner';
+import { Employee } from '@/types/planner';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +6,7 @@ import { Calendar, Clock, Briefcase } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useCalendar } from '@/hooks/useCalendar';
+import { useTeam } from '@/contexts/TeamContext';
 
 interface EmployeeCardProps {
   employee: Employee;
@@ -14,12 +15,16 @@ interface EmployeeCardProps {
 
 export function EmployeeCard({ employee, onEdit }: EmployeeCardProps) {
   const { getMonthCapacity } = useCalendar();
+  const { getTeamById, getTeamColor } = useTeam();
   
   // Get average monthly capacity (using a reference month)
   const referenceCapacity = getMonthCapacity(0, 2024, employee);
   const totalFixedHours = employee.fixedAllocations.reduce((sum, f) => sum + f.hoursPerMonth, 0);
   const availableHours = referenceCapacity.availableHours;
   const dailyHours = employee.dailyHours || 8;
+
+  const team = getTeamById(employee.teamId);
+  const teamColor = getTeamColor(employee.teamId);
 
   return (
     <Card className="card-glow transition-all duration-300 hover:shadow-lg cursor-pointer" onClick={onEdit}>
@@ -29,8 +34,8 @@ export function EmployeeCard({ employee, onEdit }: EmployeeCardProps) {
             <CardTitle className="text-base font-semibold">{employee.name}</CardTitle>
             <p className="text-sm text-muted-foreground">{employee.role}</p>
           </div>
-          <Badge className={cn("text-xs", CELL_COLORS[employee.cell], "text-primary-foreground")}>
-            {employee.cell}
+          <Badge className={cn("text-xs text-white", teamColor)}>
+            {team?.name || 'Sem equipe'}
           </Badge>
         </div>
       </CardHeader>

@@ -2,13 +2,22 @@ import { mockProjects } from '@/data/mockData';
 import { ProjectCard } from '@/components/demands/ProjectCard';
 import { Card, CardContent } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { useTeam } from '@/contexts/TeamContext';
+import { cn } from '@/lib/utils';
 
 export default function DemandsPage() {
-  const totalBudget = mockProjects.reduce((sum, p) => sum + p.budgetHours, 0);
-  const totalAllocated = mockProjects.reduce((sum, p) => sum + p.allocatedHours, 0);
-  const overBudgetProjects = mockProjects.filter(p => p.allocatedHours > p.budgetHours);
+  const { selectedTeam } = useTeam();
 
-  const pieData = mockProjects.map(p => ({
+  // Filter projects by selected team
+  const filteredProjects = selectedTeam
+    ? mockProjects.filter(p => p.teamId === selectedTeam.id)
+    : mockProjects;
+
+  const totalBudget = filteredProjects.reduce((sum, p) => sum + p.budgetHours, 0);
+  const totalAllocated = filteredProjects.reduce((sum, p) => sum + p.allocatedHours, 0);
+  const overBudgetProjects = filteredProjects.filter(p => p.allocatedHours > p.budgetHours);
+
+  const pieData = filteredProjects.map(p => ({
     name: p.name,
     value: p.allocatedHours,
     color: p.color,
@@ -18,7 +27,14 @@ export default function DemandsPage() {
     <div className="p-6 space-y-6 fade-in">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold">Dashboard de Demandas</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold">Dashboard de Demandas</h1>
+          {selectedTeam && (
+            <span className={cn("px-2 py-1 rounded text-xs text-white", selectedTeam.color)}>
+              {selectedTeam.name}
+            </span>
+          )}
+        </div>
         <p className="text-muted-foreground">
           Acompanhe o orçamento e alocação de cada projeto
         </p>
@@ -54,9 +70,15 @@ export default function DemandsPage() {
         <div className="lg:col-span-2 space-y-4">
           <h2 className="text-lg font-semibold">Projetos</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {mockProjects.map(project => (
-              <ProjectCard key={project.id} project={project} />
-            ))}
+            {filteredProjects.length > 0 ? (
+              filteredProjects.map(project => (
+                <ProjectCard key={project.id} project={project} />
+              ))
+            ) : (
+              <div className="col-span-full text-center py-12 text-muted-foreground">
+                Nenhum projeto encontrado nesta equipe
+              </div>
+            )}
           </div>
         </div>
 

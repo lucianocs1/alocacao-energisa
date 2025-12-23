@@ -1,35 +1,32 @@
-import { useState } from 'react';
 import { mockEmployees } from '@/data/mockData';
 import { EmployeeCard } from '@/components/team/EmployeeCard';
-import { CellType, CELL_COLORS } from '@/types/planner';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Plus, Users } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useCalendar } from '@/hooks/useCalendar';
+import { useTeam } from '@/contexts/TeamContext';
 
 export default function TeamPage() {
-  const [selectedCell, setSelectedCell] = useState<CellType | 'all'>('all');
+  const { selectedTeam } = useTeam();
   const { getMonthCapacity } = useCalendar();
 
-  const cells: (CellType | 'all')[] = ['all', 'Contábil', 'Fiscal', 'Societário', 'Trabalhista'];
+  // Filter employees by selected team
+  const filteredEmployees = selectedTeam 
+    ? mockEmployees.filter(e => e.teamId === selectedTeam.id)
+    : mockEmployees;
 
-  const filteredEmployees = selectedCell === 'all' 
-    ? mockEmployees 
-    : mockEmployees.filter(e => e.cell === selectedCell);
-
-  // Calculate total capacity using a reference month (January 2024)
-  const totalCapacity = mockEmployees.reduce((sum, e) => {
+  // Calculate total capacity using a reference month (January 2024) for filtered employees
+  const totalCapacity = filteredEmployees.reduce((sum, e) => {
     const capacity = getMonthCapacity(0, 2024, e);
     return sum + capacity.totalHours;
   }, 0);
   
-  const totalFixedHours = mockEmployees.reduce((sum, e) => 
+  const totalFixedHours = filteredEmployees.reduce((sum, e) => 
     sum + e.fixedAllocations.reduce((s, f) => s + f.hoursPerMonth, 0), 0
   );
 
-  const totalAvailable = mockEmployees.reduce((sum, e) => {
+  const totalAvailable = filteredEmployees.reduce((sum, e) => {
     const capacity = getMonthCapacity(0, 2024, e);
     return sum + capacity.availableHours;
   }, 0);
@@ -39,7 +36,14 @@ export default function TeamPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Gestão de Equipe</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Gestão de Equipe</h1>
+            {selectedTeam && (
+              <span className={cn("px-2 py-1 rounded text-xs text-white", selectedTeam.color)}>
+                {selectedTeam.name}
+              </span>
+            )}
+          </div>
           <p className="text-muted-foreground">
             Gerencie recursos, férias e alocações fixas
           </p>
@@ -59,7 +63,7 @@ export default function TeamPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total de Recursos</p>
-              <p className="text-2xl font-bold">{mockEmployees.length}</p>
+              <p className="text-2xl font-bold">{filteredEmployees.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -84,33 +88,21 @@ export default function TeamPage() {
         </Card>
       </div>
 
-      {/* Filter */}
-      <div className="flex flex-wrap gap-2">
-        {cells.map(cell => (
-          <Badge
-            key={cell}
-            variant={selectedCell === cell ? "default" : "outline"}
-            className={cn(
-              "cursor-pointer transition-all hover:scale-105",
-              selectedCell === cell && cell !== 'all' && CELL_COLORS[cell as CellType],
-              selectedCell === cell && "text-primary-foreground"
-            )}
-            onClick={() => setSelectedCell(cell)}
-          >
-            {cell === 'all' ? 'Todos' : cell}
-          </Badge>
-        ))}
-      </div>
-
       {/* Employee Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredEmployees.map(employee => (
-          <EmployeeCard 
-            key={employee.id} 
-            employee={employee}
-            onEdit={() => {}}
-          />
-        ))}
+        {filteredEmployees.length > 0 ? (
+          filteredEmployees.map(employee => (
+            <EmployeeCard 
+              key={employee.id} 
+              employee={employee}
+              onEdit={() => {}}
+            />
+          ))
+        ) : (
+          <div className="col-span-full text-center py-12 text-muted-foreground">
+            Nenhum recurso encontrado nesta equipe
+          </div>
+        )}
       </div>
     </div>
   );

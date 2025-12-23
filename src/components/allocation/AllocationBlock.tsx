@@ -1,28 +1,29 @@
 import { cn } from '@/lib/utils';
-import { Project } from '@/types/planner';
+import { Project, Demand } from '@/types/planner';
 import { X, ExternalLink } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface AllocationBlockProps {
+  demand: Demand;
   project: Project;
   hours: number;
-  isCrossTeam?: boolean;
+  isLoan?: boolean;
   onRemove?: () => void;
 }
 
-export function AllocationBlock({ project, hours, isCrossTeam, onRemove }: AllocationBlockProps) {
+export function AllocationBlock({ demand, project, hours, isLoan, onRemove }: AllocationBlockProps) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <div 
           className={cn(
             "allocation-block group relative",
-            isCrossTeam && "ring-2 ring-purple-500/50"
+            isLoan && "ring-2 ring-purple-500/50"
           )}
           style={{ backgroundColor: project.color }}
         >
           <span className="text-primary-foreground truncate">{hours}h</span>
-          {isCrossTeam && (
+          {isLoan && (
             <ExternalLink className="w-2.5 h-2.5 text-primary-foreground/70 ml-1" />
           )}
           <span className="text-primary-foreground/70 ml-1 truncate hidden sm:inline">
@@ -48,9 +49,10 @@ export function AllocationBlock({ project, hours, isCrossTeam, onRemove }: Alloc
         </div>
       </TooltipTrigger>
       <TooltipContent>
-        <p className="font-medium">{project.name}</p>
+        <p className="font-medium">{demand.name}</p>
+        <p className="text-xs text-muted-foreground">Projeto: {project.name}</p>
         <p className="text-xs text-muted-foreground">{hours}h alocadas</p>
-        {isCrossTeam && <p className="text-xs text-purple-400">Recurso externo</p>}
+        {isLoan && <p className="text-xs text-purple-400">Recurso emprestado</p>}
       </TooltipContent>
     </Tooltip>
   );
