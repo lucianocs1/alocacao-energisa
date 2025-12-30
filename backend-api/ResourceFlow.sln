@@ -1,0 +1,37 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34316.72
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ResourceFlow.API", "src\ResourceFlow.API\ResourceFlow.API.csproj", "{E1B3F8E7-8C7E-4B3B-9A2F-8E5C1D2F3G4H}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ResourceFlow.Application", "src\ResourceFlow.Application\ResourceFlow.Application.csproj", "{F2C4G9F8-9D8F-5C4C-0B3F-9F6D2E3G4H5I}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ResourceFlow.Domain", "src\ResourceFlow.Domain\ResourceFlow.Domain.csproj", "{G3D5H0G9-0E9G-6D5D-1C4G-0G7E3F4H5I6J}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ResourceFlow.Infrastructure", "src\ResourceFlow.Infrastructure\ResourceFlow.Infrastructure.csproj", "{H4E6I1H0-1F0H-7E6E-2D5H-1H8F4G5I6J7K}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E1B3F8E7-8C7E-4B3B-9A2F-8E5C1D2F3G4H}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E1B3F8E7-8C7E-4B3B-9A2F-8E5C1D2F3G4H}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E1B3F8E7-8C7E-4B3B-9A2F-8E5C1D2F3G4H}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E1B3F8E7-8C7E-4B3B-9A2F-8E5C1D2F3G4H}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F2C4G9F8-9D8F-5C4C-0B3F-9F6D2E3G4H5I}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F2C4G9F8-9D8F-5C4C-0B3F-9F6D2E3G4H5I}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F2C4G9F8-9D8F-5C4C-0B3F-9F6D2E3G4H5I}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F2C4G9F8-9D8F-5C4C-0B3F-9F6D2E3G4H5I}.Release|Any CPU.Build.0 = Release|Any CPU
+		{G3D5H0G9-0E9G-6D5D-1C4G-0G7E3F4H5I6J}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{G3D5H0G9-0E9G-6D5D-1C4G-0G7E3F4H5I6J}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{G3D5H0G9-0E9G-6D5D-1C4G-0G7E3F4H5I6J}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{G3D5H0G9-0E9G-6D5D-1C4G-0G7E3F4H5I6J}.Release|Any CPU.Build.0 = Release|Any CPU
+		{H4E6I1H0-1F0H-7E6E-2D5H-1H8F4G5I6J7K}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{H4E6I1H0-1F0H-7E6E-2D5H-1H8F4G5I6J7K}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{H4E6I1H0-1F0H-7E6E-2D5H-1H8F4G5I6J7K}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{H4E6I1H0-1F0H-7E6E-2D5H-1H8F4G5I6J7K}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

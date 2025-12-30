@@ -1,0 +1,147 @@
+using Microsoft.EntityFrameworkCore;
+using ResourceFlow.Domain.Entities;
+
+namespace ResourceFlow.Infrastructure.Data;
+
+public class ApplicationDbContext : DbContext
+{
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+        : base(options)
+    {
+    }
+
+    public DbSet<User> Users { get; set; }
+    public DbSet<Department> Departments { get; set; }
+    public DbSet<Project> Projects { get; set; }
+    public DbSet<Demand> Demands { get; set; }
+    public DbSet<DemandPhase> DemandPhases { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // Configuração da entidade User
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.FullName).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.PasswordHash).IsRequired();
+            entity.Property(e => e.Role).IsRequired();
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            // Índices
+            entity.HasIndex(e => e.Email).IsUnique();
+
+            // Relacionamento com Department
+            entity.HasOne(e => e.Department)
+                .WithMany(d => d.Coordinators)
+                .HasForeignKey(e => e.DepartmentId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Configuração da entidade Department
+        modelBuilder.Entity<Department>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            // Índices
+            entity.HasIndex(e => e.Code).IsUnique();
+        });
+
+        // Configuração da entidade Project
+        modelBuilder.Entity<Project>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.Color).HasMaxLength(50);
+            entity.Property(e => e.Priority).IsRequired();
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            // Índices
+            entity.HasIndex(e => e.Code).IsUnique();
+
+            // Relacionamento com User (criador)
+            entity.HasOne(e => e.CreatedBy)
+                .WithMany()
+                .HasForeignKey(e => e.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Configuração da entidade Demand
+        modelBuilder.Entity<Demand>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.TotalHours).IsRequired();
+            entity.Property(e => e.AllocatedHours).HasDefaultValue(0);
+            entity.Property(e => e.Status).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            // Relacionamento com Project
+            entity.HasOne(e => e.Project)
+                .WithMany(p => p.Demands)
+                .HasForeignKey(e => e.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Relacionamento com Department (Team)
+            entity.HasOne(e => e.Team)
+                .WithMany()
+                .HasForeignKey(e => e.TeamId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Configuração da entidade DemandPhase
+        modelBuilder.Entity<DemandPhase>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Type).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(255);
+            entity.Property(e => e.IsMilestone).HasDefaultValue(false);
+
+            // Relacionamento com Demand
+            entity.HasOne(e => e.Demand)
+                .WithMany(d => d.Phases)
+                .HasForeignKey(e => e.DemandId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Seed inicial de departamentos
+        modelBuilder.Entity<Department>().HasData(
+            new Department
+            {
+                Id = Guid.NewGuid(),
+                Name = "Contábil",
+                Code = "CONT",
+                Description = "Departamento de Contabilidade",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            },
+            new Department
+            {
+                Id = Guid.NewGuid(),
+                Name = "Fiscal",
+                Code = "FISC",
+                Description = "Departamento Fiscal",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            }
+        );
+    }
+}
