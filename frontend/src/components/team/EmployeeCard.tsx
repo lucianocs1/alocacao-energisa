@@ -17,20 +17,25 @@ export function EmployeeCard({ employee, onEdit }: EmployeeCardProps) {
   const { getMonthCapacity } = useCalendar();
   const { getTeamById, getTeamColor } = useTeam();
   
-  // Get average monthly capacity (using a reference month)
-  const referenceCapacity = getMonthCapacity(0, 2024, employee);
+  // Get current month capacity
+  const currentDate = new Date();
+  const currentCapacity = getMonthCapacity(currentDate.getMonth(), currentDate.getFullYear(), employee);
   const totalFixedHours = employee.fixedAllocations.reduce((sum, f) => sum + f.hoursPerMonth, 0);
-  const availableHours = referenceCapacity.availableHours;
+  const availableHours = currentCapacity.availableHours;
   const dailyHours = employee.dailyHours || 8;
 
   const team = getTeamById(employee.teamId);
   const teamColor = getTeamColor(employee.teamId);
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    onEdit?.();
+  };
+
   return (
-    <Card className="card-glow transition-all duration-300 hover:shadow-lg cursor-pointer" onClick={onEdit}>
+    <Card className="card-glow transition-all duration-300 hover:shadow-lg cursor-pointer" onClick={handleCardClick}>
       <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          <div>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1">
             <CardTitle className="text-base font-semibold">{employee.name}</CardTitle>
             <p className="text-sm text-muted-foreground">{employee.role}</p>
           </div>
@@ -89,11 +94,11 @@ export function EmployeeCard({ employee, onEdit }: EmployeeCardProps) {
         {/* Available Hours */}
         <div className="pt-2 border-t border-border">
           <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">Disponível/mês (ref.)</span>
+            <span className="text-sm text-muted-foreground">Disponível (mês atual)</span>
             <span className="text-lg font-semibold text-success">{availableHours}h</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Varia conforme dias úteis do mês
+            {currentCapacity.totalHours}h capacidade - {totalFixedHours}h fixas
           </p>
         </div>
       </CardContent>

@@ -15,6 +15,9 @@ public class ApplicationDbContext : DbContext
     public DbSet<Project> Projects { get; set; }
     public DbSet<Demand> Demands { get; set; }
     public DbSet<DemandPhase> DemandPhases { get; set; }
+    public DbSet<Employee> Employees { get; set; }
+    public DbSet<EmployeeVacation> EmployeeVacations { get; set; }
+    public DbSet<EmployeeFixedAllocation> EmployeeFixedAllocations { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -120,28 +123,50 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // Seed inicial de departamentos
-        modelBuilder.Entity<Department>().HasData(
-            new Department
-            {
-                Id = Guid.NewGuid(),
-                Name = "Contábil",
-                Code = "CONT",
-                Description = "Departamento de Contabilidade",
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            },
-            new Department
-            {
-                Id = Guid.NewGuid(),
-                Name = "Fiscal",
-                Code = "FISC",
-                Description = "Departamento Fiscal",
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            }
-        );
+        // Configuração da entidade Employee
+        modelBuilder.Entity<Employee>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Role).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.DailyHours).HasDefaultValue(8);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            // Relacionamento com Department
+            entity.HasOne(e => e.Department)
+                .WithMany()
+                .HasForeignKey(e => e.DepartmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Configuração da entidade EmployeeVacation
+        modelBuilder.Entity<EmployeeVacation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.StartDate).IsRequired();
+            entity.Property(e => e.EndDate).IsRequired();
+
+            // Relacionamento com Employee
+            entity.HasOne(e => e.Employee)
+                .WithMany(emp => emp.Vacations)
+                .HasForeignKey(e => e.EmployeeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configuração da entidade EmployeeFixedAllocation
+        modelBuilder.Entity<EmployeeFixedAllocation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.HoursPerMonth).IsRequired();
+
+            // Relacionamento com Employee
+            entity.HasOne(e => e.Employee)
+                .WithMany(emp => emp.FixedAllocations)
+                .HasForeignKey(e => e.EmployeeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 }
