@@ -1,21 +1,45 @@
-import { mockProjects } from '@/data/mockData';
+import { useState, useEffect } from 'react';
+import { demandService, DemandsDashboardData } from '@/services/demandService';
 import { ProjectCard } from '@/components/demands/ProjectCard';
 import { Card, CardContent } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { useTeam } from '@/contexts/TeamContext';
 import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
 
 export default function DemandsPage() {
   const { selectedTeam } = useTeam();
+  const [dashboardData, setDashboardData] = useState<DemandsDashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Filter projects by selected team
-  const filteredProjects = selectedTeam
-    ? mockProjects.filter(p => p.teamId === selectedTeam.id)
-    : mockProjects;
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const data = await demandService.getDemandsDashboard(selectedTeam?.id);
+        setDashboardData(data);
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const totalBudget = filteredProjects.reduce((sum, p) => sum + p.budgetHours, 0);
-  const totalAllocated = filteredProjects.reduce((sum, p) => sum + p.allocatedHours, 0);
-  const overBudgetProjects = filteredProjects.filter(p => p.allocatedHours > p.budgetHours);
+    fetchData();
+  }, [selectedTeam?.id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const filteredProjects = dashboardData?.projects ?? [];
+  const totalBudget = dashboardData?.totalBudgetHours ?? 0;
+  const totalAllocated = dashboardData?.totalAllocatedHours ?? 0;
+  const overBudgetProjectsCount = dashboardData?.overBudgetProjectsCount ?? 0;
 
   const pieData = filteredProjects.map(p => ({
     name: p.name,
@@ -53,14 +77,14 @@ export default function DemandsPage() {
             <p className="text-sm text-muted-foreground">Total Alocado</p>
             <p className="text-3xl font-bold">{totalAllocated}h</p>
             <p className="text-sm text-muted-foreground mt-1">
-              {Math.round((totalAllocated / totalBudget) * 100)}% do orçamento
+              {totalBudget > 0 ? Math.round((totalAllocated / totalBudget) * 100) : 0}% do orçamento
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6 text-center">
             <p className="text-sm text-muted-foreground">Projetos Acima do Orçamento</p>
-            <p className="text-3xl font-bold text-destructive">{overBudgetProjects.length}</p>
+            <p className="text-3xl font-bold text-destructive">{overBudgetProjectsCount}</p>
           </CardContent>
         </Card>
       </div>

@@ -216,4 +216,23 @@ public class ProjectsController : ControllerBase
 
         return Ok(await _projectService.GetProjectStatsAsync(teamId));
     }
+
+    /// <summary>
+    /// Obtém resumo dos projetos para o dashboard de demandas
+    /// </summary>
+    [HttpGet("demands-summary")]
+    public async Task<ActionResult<ProjectDemandsSummaryListResponse>> GetDemandsSummary([FromQuery] Guid? teamId = null)
+    {
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        var userDepartmentId = User.FindFirst("DepartmentId")?.Value;
+
+        // Se for coordenador, usar sua equipe
+        if (userRole == "Coordinator" && !string.IsNullOrEmpty(userDepartmentId))
+        {
+            var departmentId = Guid.Parse(userDepartmentId);
+            return Ok(await _projectService.GetProjectsDemandsSummaryAsync(departmentId));
+        }
+
+        return Ok(await _projectService.GetProjectsDemandsSummaryAsync(teamId));
+    }
 }

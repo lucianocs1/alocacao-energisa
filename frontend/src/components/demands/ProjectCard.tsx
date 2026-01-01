@@ -1,15 +1,17 @@
-import { Project } from '@/types/planner';
+import { ProjectDemandsSummary } from '@/services/demandService';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, TrendingUp } from 'lucide-react';
 
 interface ProjectCardProps {
-  project: Project;
+  project: ProjectDemandsSummary;
 }
 
 export function ProjectCard({ project }: ProjectCardProps) {
-  const percentage = Math.round((project.allocatedHours / project.budgetHours) * 100);
+  const percentage = project.budgetHours > 0 
+    ? Math.round((project.allocatedHours / project.budgetHours) * 100) 
+    : 0;
   const isOverBudget = project.allocatedHours > project.budgetHours;
   const remaining = project.budgetHours - project.allocatedHours;
 

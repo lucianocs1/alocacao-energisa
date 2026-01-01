@@ -19,4 +19,7 @@ public interface IProjectService
     
     // Estatísticas
     Task<ProjectStatsDto> GetProjectStatsAsync(Guid? teamId = null);
+    
+    // Dashboard de Demandas
+    Task<ProjectDemandsSummaryListResponse> GetProjectsDemandsSummaryAsync(Guid? teamId = null);
 }

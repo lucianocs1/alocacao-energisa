@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { EmployeeCard } from '@/components/team/EmployeeCard';
 import { EmployeeModal } from '@/components/team/EmployeeModal';
+import { EmployeeDetailModal } from '@/components/team/EmployeeDetailModal';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Plus, Users, Loader2 } from 'lucide-react';
@@ -29,6 +30,7 @@ export default function TeamPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
@@ -58,11 +60,16 @@ export default function TeamPage() {
 
   const handleEditEmployee = (employee: Employee) => {
     setSelectedEmployee(employee);
-    setModalOpen(true);
+    setDetailModalOpen(true);
   };
 
   const handleModalClose = () => {
     setModalOpen(false);
+    setSelectedEmployee(null);
+  };
+
+  const handleDetailModalClose = () => {
+    setDetailModalOpen(false);
     setSelectedEmployee(null);
   };
 
@@ -206,14 +213,25 @@ export default function TeamPage() {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Modal for New Employee */}
       <EmployeeModal
         open={modalOpen}
         onClose={handleModalClose}
-        employee={selectedEmployee}
+        employee={null}
         onSave={handleSave}
-        onDelete={selectedEmployee ? () => handleDeleteClick(selectedEmployee) : undefined}
       />
+
+      {/* Modal for Employee Details (with vacation management) */}
+      {selectedEmployee && (
+        <EmployeeDetailModal
+          open={detailModalOpen}
+          onClose={handleDetailModalClose}
+          employee={selectedEmployee}
+          onSave={() => {
+            loadEmployees();
+          }}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

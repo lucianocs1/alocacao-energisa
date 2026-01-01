@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: resourceflow-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: resourceflow-db
+          property: connectionString
+      - key: Jwt__Secret
+        generateValue: true
+      - key: Jwt__Issuer
+        value: ResourceFlow
+      - key: Jwt__Audience
+        value: ResourceFlowAPI
+      - key: CORS__AllowedOrigins
+        sync: false
+
+databases:
+  - name: resourceflow-db
+    databaseName: resourceflow
+    user: resourceflow_user
+    plan: free

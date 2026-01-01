@@ -1,52 +1,55 @@
 import { AlertTriangle, CircleDot, Clock, GripVertical, ChevronDown, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import { Demand, Project, DEMAND_STATUS_CONFIG } from '@/types/planner';
-import { mockProjects } from '@/data/mockData';
+import { Demand, DEMAND_STATUS_CONFIG } from '@/types/planner';
+
+interface ProjectInfo {
+  id: string;
+  name: string;
+  color: string;
+}
 
 interface AllocationBacklogProps {
   teamId: string;
+  demands: Demand[]; // Agora recebe demandas como prop
   onDemandSelect?: (demand: Demand) => void;
   selectedDemandId?: string;
 }
 
-export function AllocationBacklog({ teamId, onDemandSelect, selectedDemandId }: AllocationBacklogProps) {
+export function AllocationBacklog({ teamId, demands, onDemandSelect, selectedDemandId }: AllocationBacklogProps) {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
 
-  // Get all demands for the team that are pending or partial
-  const getTeamPendingDemands = () => {
-    const demandsWithProject: { demand: Demand; project: Project }[] = [];
-    
-    mockProjects.forEach(project => {
-      project.demands.forEach(demand => {
-        if (demand.teamId === teamId && (demand.status === 'pending' || demand.status === 'partial')) {
-          demandsWithProject.push({ demand, project });
-        }
-      });
-    });
-
-    return demandsWithProject;
-  };
+  // Get all pending/partial demands for the team
+  const pendingDemands = useMemo(() => 
+    demands.filter(d => d.teamId === teamId && (d.status === 'pending' || d.status === 'partial')),
+    [demands, teamId]
+  );
 
   // Group demands by project
-  const groupDemandsByProject = () => {
-    const pendingDemands = getTeamPendingDemands();
-    const grouped = new Map<string, { project: Project; demands: Demand[] }>();
+  const groupedDemands = useMemo(() => {
+    const grouped = new Map<string, { project: ProjectInfo; demands: Demand[] }>();
 
-    pendingDemands.forEach(({ demand, project }) => {
-      if (!grouped.has(project.id)) {
-        grouped.set(project.id, { project, demands: [] });
+    pendingDemands.forEach(demand => {
+      if (!grouped.has(demand.projectId)) {
+        grouped.set(demand.projectId, { 
+          project: {
+            id: demand.projectId,
+            name: demand._projectName || 'Projeto',
+            color: demand._projectColor || '#888',
+          }, 
+          demands: [] 
+        });
       }
-      grouped.get(project.id)!.demands.push(demand);
+      grouped.get(demand.projectId)!.demands.push(demand);
     });
 
     return Array.from(grouped.values());
-  };
+  }, [pendingDemands]);
 
   const toggleProject = (projectId: string) => {
     setExpandedProjects(prev => {
@@ -71,8 +74,7 @@ export function AllocationBacklog({ teamId, onDemandSelect, selectedDemandId }: 
     }
   };
 
-  const groupedDemands = groupDemandsByProject();
-  const totalPending = getTeamPendingDemands().length;
+  const totalPending = pendingDemands.length;
 
   // Start with all projects expanded by default
   if (expandedProjects.size === 0 && groupedDemands.length > 0) {

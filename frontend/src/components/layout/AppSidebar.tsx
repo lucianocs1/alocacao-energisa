@@ -1,4 +1,4 @@
-import { LayoutGrid, Briefcase, Users, ChevronDown, FolderKanban, ClipboardList } from 'lucide-react';
+import { LayoutGrid, Briefcase, Users, ChevronDown, FolderKanban, ClipboardList, Calendar } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { cn } from '@/lib/utils';
 import { useTeam } from '@/contexts/TeamContext';
@@ -19,7 +19,7 @@ const navItems = [
   },
   { 
     title: 'Alocação', 
-    url: '/', 
+    url: '/alocacao', 
     icon: LayoutGrid,
     description: 'Painel de alocação de recursos'
   },
@@ -40,6 +40,12 @@ const navItems = [
     url: '/equipe', 
     icon: Users,
     description: 'Gestão de pessoas'
+  },
+  { 
+    title: 'Calendário', 
+    url: '/calendario', 
+    icon: Calendar,
+    description: 'Feriados e dias ponte'
   },
 ];
 
@@ -103,19 +109,10 @@ export function AppSidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4">
         <ul className="space-y-1">
-          {navItems
-            .filter(item => {
-              // Coordenadores não veem o Hub de Projetos
-              if (item.url === '/projetos' && usuario?.role === 'Coordenador') {
-                return false;
-              }
-              return true;
-            })
-            .map((item) => (
+          {navItems.map((item) => (
             <li key={item.url}>
               <NavLink
                 to={item.url}
-                end={item.url === '/'}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
                   "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"

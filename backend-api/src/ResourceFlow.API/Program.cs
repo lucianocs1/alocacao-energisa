@@ -45,6 +45,8 @@ builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
+builder.Services.AddScoped<IAllocationService, AllocationService>();
+builder.Services.AddScoped<ICalendarService, CalendarService>();
 builder.Services.AddScoped<ITokenService>(sp =>
     new TokenService(jwtSecret, jwtIssuer, jwtAudience, 1440));
 
@@ -52,11 +54,14 @@ builder.Services.AddScoped<ITokenService>(sp =>
 builder.Services.AddControllers();
 
 // Configuração de CORS
+var allowedOrigins = builder.Configuration["CORS:AllowedOrigins"]?.Split(',') 
+    ?? new[] { "http://localhost:8080", "http://localhost:5173" };
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:8080", "http://localhost:5173")
+        policy.WithOrigins(allowedOrigins)
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials();
@@ -72,8 +77,23 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    dbContext.Database.Migrate();
-    DataSeeder.Seed(dbContext);
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
+    try
+    {
+        logger.LogInformation("Aplicando migrations...");
+        dbContext.Database.Migrate();
+        logger.LogInformation("Migrations aplicadas com sucesso.");
+        
+        logger.LogInformation("Executando seed de dados...");
+        DataSeeder.Seed(dbContext);
+        logger.LogInformation("Seed executado com sucesso.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Erro ao aplicar migrations ou seed.");
+        throw;
+    }
 }
 
 // Configure the HTTP request pipeline
@@ -89,5 +109,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Health check endpoint para o Render
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
 app.Run();

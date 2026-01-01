@@ -3,14 +3,17 @@ import { useTeam } from '@/contexts/TeamContext';
 import { 
   AzureWorkItem, 
   TeamDashboardData, 
-  EmployeeTimeReport 
+  EmployeeTimeReport,
+  DemandStatus
 } from '@/types/planner';
 import { 
   getMockWorkItems, 
   groupWorkItemsByEmployee,
   calculateWorkedHoursByEmployee 
 } from '@/services/azureDevOpsService';
-import { mockEmployees, mockProjects, getAllDemands } from '@/data/mockData';
+import { allocationService } from '@/services/allocationService';
+import { employeeService } from '@/services/employeeService';
+import calendarService from '@/services/calendarService';
 
 // Flag para usar mock data durante desenvolvimento
 const USE_MOCK_DATA = true;
@@ -43,120 +46,177 @@ export function useTeamWorkItems() {
 
 /**
  * Hook para gerar o dashboard do coordenador
+ * Busca dados reais de alocação (planejado) e mock de horas trabalhadas (realizado)
+ * Futuramente: horas trabalhadas virão do Azure DevOps
  */
 export function useCoordinatorDashboard(month: number, year: number) {
   const { selectedTeam } = useTeam();
-  const { data: workItems = [], isLoading: isLoadingWorkItems } = useTeamWorkItems();
 
   return useQuery({
     queryKey: ['coordinatorDashboard', selectedTeam?.id, month, year],
     queryFn: async (): Promise<TeamDashboardData | null> => {
       if (!selectedTeam) return null;
 
-      // Simula delay
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      try {
+        // Buscar dados reais do backend
+        const [pageData, teamEmployees, calendarSummary] = await Promise.all([
+          allocationService.getPageData(selectedTeam.id, year),
+          employeeService.getEmployees(selectedTeam.id),
+          calendarService.getYearSummary(year),
+        ]);
 
-      // Colaboradores da equipe
-      const teamEmployees = mockEmployees.filter(
-        (emp) => emp.teamId === selectedTeam.id
-      );
+        const { allocations, demands } = pageData;
+        
+        // Filtrar alocações do mês selecionado
+        const monthAllocations = allocations.filter(
+          a => a.month === month && a.year === year
+        );
 
-      // Demandas da equipe
-      const allDemands = getAllDemands();
-      const teamDemands = allDemands.filter(
-        (d) => d.teamId === selectedTeam.id
-      );
+        // Calcular dias úteis no mês considerando eventos do calendário
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const workDaysInMonth = calculateWorkDays(year, month, daysInMonth, calendarSummary?.hoursLost || 0);
+        
+        // Gerar relatório por colaborador
+        const employeeReports: EmployeeTimeReport[] = teamEmployees.map((emp) => {
+          // Horas planejadas: soma das alocações do mês para este colaborador
+          const empAllocations = monthAllocations.filter(a => a.employeeId === emp.id);
+          const plannedHours = empAllocations.reduce((sum, a) => sum + a.hours, 0);
 
-      // Agrupar work items por colaborador
-      const workItemsByEmployee = groupWorkItemsByEmployee(workItems);
-      const hoursByEmployee = calculateWorkedHoursByEmployee(workItems);
+          // Capacidade do colaborador no mês (considerando férias e eventos)
+          const capacityHours = Math.round(emp.dailyHours * workDaysInMonth);
 
-      // Gerar relatório por colaborador
-      const employeeReports: EmployeeTimeReport[] = teamEmployees.map((emp) => {
-        // Mock de email baseado no nome
-        const emailKey = emp.name.toLowerCase().replace(' ', '.') + '@energisa.com.br';
-        const empWorkItems = workItemsByEmployee.get(emailKey) || [];
-        const workedHours = hoursByEmployee.get(emailKey) || 0;
+          // MOCK: Horas trabalhadas (futuramente do Azure DevOps)
+          // Simula uma variação entre 70-110% do planejado
+          const workedHours = plannedHours > 0 
+            ? Math.round(plannedHours * (0.7 + Math.random() * 0.4))
+            : 0;
 
-        // Calcular horas planejadas (alocações do mês)
-        const plannedHours = 160; // TODO: Calcular baseado em allocations
+          // Agrupar por demanda
+          const demandGroups = new Map<string, { 
+            demandId: string; 
+            demandName: string; 
+            projectName: string;
+            planned: number;
+          }>();
 
-        return {
-          employeeId: emp.id,
-          employeeName: emp.name,
-          period: {
-            startDate: new Date(year, month, 1),
-            endDate: new Date(year, month + 1, 0),
-          },
-          totalPlannedHours: plannedHours,
-          totalWorkedHours: workedHours,
-          byDemand: teamDemands.slice(0, 2).map((demand) => {
-            const project = mockProjects.find((p) => p.id === demand.projectId);
-            const demandWorkItems = empWorkItems.filter(
-              (wi) => wi.tags?.some((tag) => 
-                demand.name.toLowerCase().includes(tag.toLowerCase())
-              )
-            );
-            const demandWorked = demandWorkItems.reduce(
-              (sum, wi) => sum + (wi.completedWork || 0), 
-              0
-            );
+          empAllocations.forEach(alloc => {
+            const demand = demands.find(d => d.id === alloc.demandId);
+            if (demand) {
+              const existing = demandGroups.get(alloc.demandId);
+              if (existing) {
+                existing.planned += alloc.hours;
+              } else {
+                demandGroups.set(alloc.demandId, {
+                  demandId: alloc.demandId,
+                  demandName: demand.name,
+                  projectName: (demand as any)._projectName || 'Projeto',
+                  planned: alloc.hours,
+                });
+              }
+            }
+          });
 
+          // Converter para array com mock de horas trabalhadas por demanda
+          const byDemand = Array.from(demandGroups.values()).map(group => {
+            // MOCK: Distribuir horas trabalhadas proporcionalmente
+            const demandWorked = plannedHours > 0
+              ? Math.round((group.planned / plannedHours) * workedHours)
+              : 0;
+            
             return {
-              demandId: demand.id,
-              demandName: demand.name,
-              projectName: project?.name || '',
-              plannedHours: Math.round(plannedHours / 2),
-              workedHours: demandWorked || Math.round(workedHours / 2),
-              variance: (demandWorked || Math.round(workedHours / 2)) - Math.round(plannedHours / 2),
-              workItems: demandWorkItems,
+              demandId: group.demandId,
+              demandName: group.demandName,
+              projectName: group.projectName,
+              plannedHours: group.planned,
+              workedHours: demandWorked,
+              variance: demandWorked - group.planned,
+              workItems: [], // Futuramente: work items do Azure
             };
-          }),
-          utilizationPercent: plannedHours > 0 
-            ? Math.round((workedHours / plannedHours) * 100) 
-            : 0,
-        };
-      });
+          });
 
-      // Calcular totais
-      const totalCapacity = teamEmployees.length * 160; // 160h/mês por colaborador
-      const totalPlanned = employeeReports.reduce(
-        (sum, r) => sum + r.totalPlannedHours, 
-        0
-      );
-      const totalWorked = employeeReports.reduce(
-        (sum, r) => sum + r.totalWorkedHours, 
-        0
-      );
+          return {
+            employeeId: emp.id,
+            employeeName: emp.name,
+            period: {
+              startDate: new Date(year, month, 1),
+              endDate: new Date(year, month + 1, 0),
+            },
+            totalPlannedHours: plannedHours,
+            totalWorkedHours: workedHours,
+            capacityHours,
+            byDemand,
+            utilizationPercent: plannedHours > 0 
+              ? Math.round((workedHours / plannedHours) * 100) 
+              : 0,
+          };
+        });
 
-      return {
-        teamId: selectedTeam.id,
-        teamName: selectedTeam.name,
-        period: { month, year },
-        summary: {
-          totalCapacity,
-          totalPlanned,
-          totalWorked,
-          utilizationPercent: totalPlanned > 0 
-            ? Math.round((totalWorked / totalPlanned) * 100) 
-            : 0,
-        },
-        employees: employeeReports,
-        demands: teamDemands.map((demand) => {
-          const project = mockProjects.find((p) => p.id === demand.projectId);
+        // Calcular totais
+        const totalCapacity = employeeReports.reduce((sum, r) => sum + (r.capacityHours || 160), 0);
+        const totalPlanned = employeeReports.reduce((sum, r) => sum + r.totalPlannedHours, 0);
+        const totalWorked = employeeReports.reduce((sum, r) => sum + r.totalWorkedHours, 0);
+
+        // Agrupar demandas com totais
+        const demandSummary = demands.map(demand => {
+          const demandAllocations = monthAllocations.filter(a => a.demandId === demand.id);
+          const totalPlannedForDemand = demandAllocations.reduce((sum, a) => sum + a.hours, 0);
+          // MOCK: Horas trabalhadas por demanda
+          const totalWorkedForDemand = totalPlannedForDemand > 0
+            ? Math.round(totalPlannedForDemand * (0.7 + Math.random() * 0.4))
+            : 0;
+
           return {
             demandId: demand.id,
             demandName: demand.name,
-            projectName: project?.name || '',
-            totalPlanned: demand.allocatedHours,
-            totalWorked: Math.round(demand.allocatedHours * 0.7), // Mock
-            status: demand.status,
+            projectName: (demand as any)._projectName || 'Projeto',
+            totalPlanned: totalPlannedForDemand,
+            totalWorked: totalWorkedForDemand,
+            status: demand.status as DemandStatus,
           };
-        }),
-      };
+        }).filter(d => d.totalPlanned > 0); // Só mostrar demandas com alocação
+
+        return {
+          teamId: selectedTeam.id,
+          teamName: selectedTeam.name,
+          period: { month, year },
+          summary: {
+            totalCapacity,
+            totalPlanned,
+            totalWorked,
+            utilizationPercent: totalPlanned > 0 
+              ? Math.round((totalWorked / totalPlanned) * 100) 
+              : 0,
+          },
+          employees: employeeReports,
+          demands: demandSummary,
+        };
+      } catch (error) {
+        console.error('Erro ao carregar dashboard do coordenador:', error);
+        return null;
+      }
     },
-    enabled: !!selectedTeam && workItems !== undefined,
+    enabled: !!selectedTeam,
+    staleTime: 2 * 60 * 1000, // 2 minutos
   });
+}
+
+/**
+ * Calcula dias úteis no mês considerando feriados
+ */
+function calculateWorkDays(year: number, month: number, daysInMonth: number, hoursLostInYear: number): number {
+  let workDays = 0;
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day);
+    const dayOfWeek = date.getDay();
+    // Não conta sábado (6) e domingo (0)
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      workDays++;
+    }
+  }
+  // Desconta aproximadamente feriados do mês (dividido por 12)
+  const avgHoursLostPerMonth = hoursLostInYear / 12;
+  const daysLost = Math.round(avgHoursLostPerMonth / 8);
+  return Math.max(workDays - daysLost, 15); // Mínimo 15 dias úteis
 }
 
 /**

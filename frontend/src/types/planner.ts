@@ -111,6 +111,9 @@ export interface Demand {
   hmgEndDate?: Date;      // Fim da Homologação
   goLiveDate?: Date;      // GO Live (Marco)
   assistedOpDate?: Date;  // Operação Assistida
+  // Campos extras vindos da API (para evitar lookup de projeto)
+  _projectName?: string;
+  _projectColor?: string;
 }
 
 export interface Allocation {

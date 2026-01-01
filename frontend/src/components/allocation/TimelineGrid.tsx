@@ -26,13 +26,13 @@ import { toast } from 'sonner';
 import { useCalendar } from '@/hooks/useCalendar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTeam } from '@/contexts/TeamContext';
-import { mockProjects } from '@/data/mockData';
 
 interface TimelineGridProps {
   employees: Employee[];
   demands: Demand[];
   allocations: Allocation[];
   guestEmployees?: Employee[]; // Employees borrowed from other teams
+  allEmployees?: Employee[];   // All employees for borrowing functionality
   onAddAllocation: (allocation: Omit<Allocation, 'id'>) => void;
   onRemoveAllocation: (id: string) => void;
   onAddGuestEmployee?: (employeeId: string) => void;
@@ -43,6 +43,7 @@ export function TimelineGrid({
   demands, 
   allocations,
   guestEmployees = [],
+  allEmployees = [],
   onAddAllocation,
   onRemoveAllocation,
   onAddGuestEmployee
@@ -59,7 +60,7 @@ export function TimelineGrid({
   const year = 2024;
 
   // Combine team employees with guest employees
-  const allEmployees = useMemo(() => {
+  const combinedEmployees = useMemo(() => {
     const guestIds = new Set(guestEmployees.map(e => e.id));
     return [
       ...employees.filter(e => !guestIds.has(e.id)),
@@ -92,7 +93,7 @@ export function TimelineGrid({
   };
 
   const handleCellClick = (employeeId: string, month: number) => {
-    const employee = allEmployees.find(e => e.id === employeeId);
+    const employee = combinedEmployees.find(e => e.id === employeeId);
     if (!employee) return;
 
     const monthData = getEmployeeMonthData(employee, month);
@@ -114,7 +115,7 @@ export function TimelineGrid({
       return;
     }
 
-    const employee = allEmployees.find(e => e.id === selectedCell.employeeId);
+    const employee = combinedEmployees.find(e => e.id === selectedCell.employeeId);
     const demand = demands.find(d => d.id === selectedDemandId);
     
     if (!employee || !demand) return;
@@ -271,13 +272,20 @@ export function TimelineGrid({
                     <div className="flex flex-row flex-wrap gap-1">
                       {monthData.allocations.map(alloc => {
                         const demand = demands.find(d => d.id === alloc.demandId);
-                        const project = mockProjects.find(p => p.id === alloc.projectId);
-                        if (!demand || !project) return null;
+                        if (!demand) return null;
+                        
+                        // Usar dados do projeto que vem junto com a demanda
+                        const projectInfo = {
+                          id: demand.projectId,
+                          name: demand._projectName || 'Projeto',
+                          color: demand._projectColor || '#888',
+                        };
+                        
                         return (
                           <AllocationBlock
                             key={alloc.id}
                             demand={demand}
-                            project={project}
+                            project={projectInfo}
                             hours={alloc.hours}
                             isLoan={alloc.isLoan}
                             onRemove={() => onRemoveAllocation(alloc.id)}
@@ -408,13 +416,12 @@ export function TimelineGrid({
                   </SelectTrigger>
                   <SelectContent>
                     {demands.map(demand => {
-                      const project = mockProjects.find(p => p.id === demand.projectId);
                       return (
                         <SelectItem key={demand.id} value={demand.id}>
                           <div className="flex items-center gap-2">
                             <div 
                               className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: project?.color || '#888' }}
+                              style={{ backgroundColor: demand._projectColor || '#888' }}
                             />
                             <span className="truncate">{demand.name}</span>
                           </div>

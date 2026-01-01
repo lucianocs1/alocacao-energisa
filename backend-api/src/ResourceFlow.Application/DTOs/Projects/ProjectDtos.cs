@@ -129,3 +129,28 @@ public class ProjectStatsDto
     public int AllocatedDemands { get; set; }
     public int CompletedDemands { get; set; }
 }
+
+// ========== Demands Dashboard DTOs ==========
+
+/// <summary>
+/// Resumo de projeto para o dashboard de demandas
+/// </summary>
+public class ProjectDemandsSummaryDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Code { get; set; } = string.Empty;
+    public string Color { get; set; } = string.Empty;
+    public string Priority { get; set; } = string.Empty;
+    public int BudgetHours { get; set; }      // Soma de TotalHours de todas as demandas
+    public int AllocatedHours { get; set; }   // Soma de AllocatedHours de todas as demandas
+    public Guid? TeamId { get; set; }         // Team filtrado (se aplicável)
+}
+
+public class ProjectDemandsSummaryListResponse
+{
+    public List<ProjectDemandsSummaryDto> Projects { get; set; } = new();
+    public int TotalBudgetHours { get; set; }
+    public int TotalAllocatedHours { get; set; }
+    public int OverBudgetProjectsCount { get; set; }
+}

@@ -13,6 +13,7 @@ import ProjectsHubPage from "./pages/ProjectsHubPage";
 import DemandsPage from "./pages/DemandsPage";
 import TeamPage from "./pages/TeamPage";
 import CoordinatorDashboardPage from "./pages/CoordinatorDashboardPage";
+import CalendarPage from "./pages/CalendarPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 
@@ -35,11 +36,13 @@ const App = () => (
                     <ProtectedRoute>
                       <AppLayout>
                         <Routes>
-                          <Route path="/" element={<Index />} />
+                          <Route path="/" element={<Navigate to="/alocacao" replace />} />
+                          <Route path="/alocacao" element={<Index />} />
                           <Route path="/projetos" element={<ProjectsHubPage />} />
                           <Route path="/demandas" element={<DemandsPage />} />
                           <Route path="/equipe" element={<TeamPage />} />
                           <Route path="/coordenador" element={<CoordinatorDashboardPage />} />
+                          <Route path="/calendario" element={<CalendarPage />} />
                           <Route path="*" element={<NotFound />} />
                         </Routes>
                       </AppLayout>

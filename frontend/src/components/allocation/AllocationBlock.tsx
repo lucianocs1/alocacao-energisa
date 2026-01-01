@@ -1,11 +1,18 @@
 import { cn } from '@/lib/utils';
-import { Project, Demand } from '@/types/planner';
+import { Demand } from '@/types/planner';
 import { X, ExternalLink } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
+interface ProjectInfo {
+  id: string;
+  name: string;
+  color: string;
+  code?: string;
+}
+
 interface AllocationBlockProps {
   demand: Demand;
-  project: Project;
+  project: ProjectInfo;
   hours: number;
   isLoan?: boolean;
   onRemove?: () => void;
@@ -26,9 +33,11 @@ export function AllocationBlock({ demand, project, hours, isLoan, onRemove }: Al
           {isLoan && (
             <ExternalLink className="w-2.5 h-2.5 text-primary-foreground/70 ml-1" />
           )}
-          <span className="text-primary-foreground/70 ml-1 truncate hidden sm:inline">
-            {project.code}
-          </span>
+          {project.code && (
+            <span className="text-primary-foreground/70 ml-1 truncate hidden sm:inline">
+              {project.code}
+            </span>
+          )}
           {onRemove && (
             <button
               onClick={(e) => {

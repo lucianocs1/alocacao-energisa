@@ -18,6 +18,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<Employee> Employees { get; set; }
     public DbSet<EmployeeVacation> EmployeeVacations { get; set; }
     public DbSet<EmployeeFixedAllocation> EmployeeFixedAllocations { get; set; }
+    public DbSet<Allocation> Allocations { get; set; }
+    public DbSet<CalendarEvent> CalendarEvents { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -167,6 +169,72 @@ public class ApplicationDbContext : DbContext
                 .WithMany(emp => emp.FixedAllocations)
                 .HasForeignKey(e => e.EmployeeId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configuração da entidade Allocation
+        modelBuilder.Entity<Allocation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Month).IsRequired();
+            entity.Property(e => e.Year).IsRequired();
+            entity.Property(e => e.Hours).IsRequired();
+            entity.Property(e => e.IsLoan).HasDefaultValue(false);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            // Relacionamento com Employee
+            entity.HasOne(e => e.Employee)
+                .WithMany()
+                .HasForeignKey(e => e.EmployeeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Relacionamento com Demand
+            entity.HasOne(e => e.Demand)
+                .WithMany()
+                .HasForeignKey(e => e.DemandId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Relacionamento com Project
+            entity.HasOne(e => e.Project)
+                .WithMany()
+                .HasForeignKey(e => e.ProjectId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Relacionamento com Department (SourceTeam)
+            entity.HasOne(e => e.SourceTeam)
+                .WithMany()
+                .HasForeignKey(e => e.SourceTeamId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Índice composto para evitar duplicação
+            entity.HasIndex(e => new { e.EmployeeId, e.DemandId, e.Month, e.Year })
+                .IsUnique();
+        });
+
+        // Configuração da entidade CalendarEvent
+        modelBuilder.Entity<CalendarEvent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Date).IsRequired();
+            entity.Property(e => e.Type).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.IsCompanyWide).HasDefaultValue(true);
+            entity.Property(e => e.HoursLost).HasDefaultValue(8);
+            entity.Property(e => e.Year).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            // Relacionamento com Department
+            entity.HasOne(e => e.Department)
+                .WithMany()
+                .HasForeignKey(e => e.DepartmentId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Índices
+            entity.HasIndex(e => e.Year);
+            entity.HasIndex(e => e.Date);
+            entity.HasIndex(e => new { e.Year, e.Type });
         });
     }
 }

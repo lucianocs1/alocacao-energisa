@@ -71,7 +71,7 @@ export default function CoordinatorDashboardPage() {
             Painel do Coordenador
           </h1>
           <p className="text-muted-foreground">
-            Acompanhe as horas trabalhadas da sua equipe
+            Acompanhe o previsto vs realizado da sua equipe
           </p>
         </div>
 
@@ -133,6 +133,20 @@ export default function CoordinatorDashboardPage() {
         <LoadingSkeleton />
       ) : dashboardData ? (
         <>
+          {/* Info Banner */}
+          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                MVP - Dados de horas trabalhadas simulados
+              </p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                As horas <strong>planejadas</strong> são reais (vindas das alocações). As horas <strong>trabalhadas</strong> 
+                são simuladas para demonstração. Futuramente serão integradas com o Azure DevOps.
+              </p>
+            </div>
+          </div>
+
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <SummaryCard
@@ -151,7 +165,7 @@ export default function CoordinatorDashboardPage() {
               title="Horas Trabalhadas"
               value={`${dashboardData.summary.totalWorked}h`}
               icon={Clock}
-              description="Apontadas no Azure DevOps"
+              description="Apontadas (simulado - futuro: Azure)"
               trend={dashboardData.summary.totalWorked >= dashboardData.summary.totalPlanned}
             />
             <SummaryCard

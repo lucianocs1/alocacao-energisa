@@ -278,6 +278,49 @@ public class ProjectService : IProjectService
         };
     }
 
+    public async Task<ProjectDemandsSummaryListResponse> GetProjectsDemandsSummaryAsync(Guid? teamId = null)
+    {
+        var projectsQuery = _context.Projects
+            .Include(p => p.Demands)
+            .Where(p => p.IsActive);
+
+        // Se teamId foi especificado, filtrar projetos que tenham demandas dessa equipe
+        if (teamId.HasValue)
+        {
+            projectsQuery = projectsQuery.Where(p => p.Demands.Any(d => d.TeamId == teamId.Value));
+        }
+
+        var projects = await projectsQuery.OrderByDescending(p => p.CreatedAt).ToListAsync();
+
+        var summaries = projects.Select(p =>
+        {
+            // Se teamId foi especificado, calcular apenas as horas das demandas dessa equipe
+            var relevantDemands = teamId.HasValue
+                ? p.Demands.Where(d => d.TeamId == teamId.Value).ToList()
+                : p.Demands.ToList();
+
+            return new ProjectDemandsSummaryDto
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Code = p.Code,
+                Color = p.Color,
+                Priority = p.Priority.ToString().ToLower(),
+                BudgetHours = relevantDemands.Sum(d => d.TotalHours),
+                AllocatedHours = relevantDemands.Sum(d => d.AllocatedHours),
+                TeamId = teamId
+            };
+        }).ToList();
+
+        return new ProjectDemandsSummaryListResponse
+        {
+            Projects = summaries,
+            TotalBudgetHours = summaries.Sum(s => s.BudgetHours),
+            TotalAllocatedHours = summaries.Sum(s => s.AllocatedHours),
+            OverBudgetProjectsCount = summaries.Count(s => s.AllocatedHours > s.BudgetHours)
+        };
+    }
+
     // ========== Helper Methods ==========
 
     private ProjectDto MapToDto(Project project)
