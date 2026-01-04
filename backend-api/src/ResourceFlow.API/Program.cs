@@ -56,7 +56,11 @@ builder.Services.AddControllers();
 
 // Configuração de CORS
 var allowedOrigins = builder.Configuration["CORS:AllowedOrigins"]?.Split(',') 
-    ?? new[] { "http://localhost:8080", "http://localhost:5173" };
+    ?? new[] { 
+        "http://localhost:8080", 
+        "http://localhost:5173",
+        "https://alocacao-energisa.vercel.app"
+    };
 
 builder.Services.AddCors(options =>
 {
