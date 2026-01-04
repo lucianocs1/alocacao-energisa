@@ -100,7 +100,8 @@ export function RequestLoanModal({
       await loanService.createLoan(request);
       
       const selectedEmployee = availableEmployees.find(e => e.id === selectedEmployeeId);
-      toast.success(`${selectedEmployee?.name} foi emprestado para ${targetDepartmentName}`);
+      const sourceDeptName = employeesByDepartment[selectedDepartmentId]?.departmentName || 'outro departamento';
+      toast.success(`Solicitação enviada! Aguarde aprovação de ${sourceDeptName} para emprestar ${selectedEmployee?.name}`);
       
       handleClose();
       onLoanCreated();

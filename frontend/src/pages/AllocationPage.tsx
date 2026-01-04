@@ -70,14 +70,13 @@ export default function AllocationPage() {
           
           setReceivedLoans(activeReceived);
           
-          // Funcionários emprestados recebidos (aparecem como guest)
-          if (activeReceived.length > 0) {
-            const loanedInIds = activeReceived.map(l => l.employeeId);
-            const guestEmps = employees.filter(e => loanedInIds.includes(e.id));
-            setGuestEmployees(guestEmps);
-          } else {
-            setGuestEmployees([]);
-          }
+          // Os funcionários emprestados recebidos já vêm na lista de employees do backend
+          // Salvamos os IDs para identificá-los visualmente no TimelineGrid
+          const receivedIds = activeReceived.map(l => l.employeeId);
+          setGuestEmployees([]); // Não precisamos mais - backend já inclui na lista
+          
+          // Passamos os IDs para o TimelineGrid identificar visualmente
+          // (será usado para mostrar como "guest" os funcionários que não são do departamento)
           
           // IDs dos funcionários emprestados (enviados) - para mostrar na timeline
           const sentIds = activeSent.map(l => l.employeeId);

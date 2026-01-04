@@ -85,17 +85,26 @@ export function TimelineGrid({
   const { getMonthCapacity, getMonthInfo } = useCalendar(year);
   const { selectedTeam, getTeamById, getTeamColor } = useTeam();
 
-  // Combine team employees with guest employees
-  const combinedEmployees = useMemo(() => {
-    const guestIds = new Set(guestEmployees.map(e => e.id));
-    return [
-      ...employees.filter(e => !guestIds.has(e.id)),
-      ...guestEmployees
-    ];
-  }, [employees, guestEmployees]);
+  // Identify which employees are guests (from other teams - by comparing teamId)
+  const guestEmployeeIds = useMemo(() => {
+    if (!selectedTeam) return new Set<string>();
+    return new Set(employees.filter(e => e.teamId !== selectedTeam.id).map(e => e.id));
+  }, [employees, selectedTeam]);
 
-  // Identify which employees are guests (from other teams)
-  const guestEmployeeIds = useMemo(() => new Set(guestEmployees.map(e => e.id)), [guestEmployees]);
+  // Separate own employees from guest employees
+  const ownEmployees = useMemo(() => {
+    if (!selectedTeam) return employees;
+    return employees.filter(e => e.teamId === selectedTeam.id);
+  }, [employees, selectedTeam]);
+
+  // Guest employees (borrowed from other teams)
+  const borrowedEmployees = useMemo(() => {
+    if (!selectedTeam) return [];
+    return employees.filter(e => e.teamId !== selectedTeam.id);
+  }, [employees, selectedTeam]);
+
+  // Combine team employees with guest employees (for lookups)
+  const combinedEmployees = useMemo(() => employees, [employees]);
   
   // Identify which employees are loaned out (to other teams)
   const loanedOutIds = useMemo(() => new Set(loanedOutEmployeeIds), [loanedOutEmployeeIds]);
@@ -186,7 +195,7 @@ export function TimelineGrid({
         toast.warning(
           `⚠️ ATENÇÃO: ${MONTHS[selectedCell.month]} é período de GO-LIVE! ` +
           `Certifique-se de que o recurso estará 100% disponível. Férias não recomendadas.`,
-          { duration: 6000 }
+          { duration: 12000 }
         );
       }
 
@@ -195,7 +204,7 @@ export function TimelineGrid({
         toast.info(
           `💡 Dica: ${MONTHS[selectedCell.month]} é período de Operação Assistida. ` +
           `Geralmente requer menos horas (suporte). Você alocou ${hoursNum}h.`,
-          { duration: 5000 }
+          { duration: 12000 }
         );
       }
     }
@@ -208,7 +217,7 @@ export function TimelineGrid({
         `Não é possível alocar ${hoursNum}h. ${MONTHS[selectedCell.month]} tem apenas ${remainingAvailable}h disponíveis ` +
         `(${monthInfo.workingDays} dias úteis × ${employee.dailyHours || 8}h - ${monthData.blockedHours}h bloqueadas). ` +
         `Excesso: ${excess}h.`,
-        { duration: 6000 }
+        { duration: 12000 }
       );
       return;
     }
@@ -506,13 +515,13 @@ export function TimelineGrid({
         {/* Body - Team Employees */}
         <div className="border-b border-border">
           {/* Team Employees - separar próprios de emprestados (enviados) */}
-          {employees.map(employee => {
+          {ownEmployees.map(employee => {
             const isLoanedOut = loanedOutIds.has(employee.id);
             return renderEmployeeRow(employee, isLoanedOut ? 'loaned-out' : 'own');
           })}
           
           {/* Guest Employees (borrowed from other teams - received) */}
-          {guestEmployees.length > 0 && (
+          {borrowedEmployees.length > 0 && (
             <>
               <div className="flex bg-muted/10 border-t border-dashed border-border">
                 <div className="w-36 sm:w-44 lg:w-56 flex-shrink-0 p-1.5 px-2 sm:px-3 border-r border-border">
@@ -522,11 +531,11 @@ export function TimelineGrid({
                 </div>
                 <div className="flex-1" />
               </div>
-              {guestEmployees.map(employee => renderEmployeeRow(employee, 'guest'))}
+              {borrowedEmployees.map(employee => renderEmployeeRow(employee, 'guest'))}
             </>
           )}
           
-          {employees.length === 0 && guestEmployees.length === 0 && (
+          {ownEmployees.length === 0 && borrowedEmployees.length === 0 && (
             <div className="flex items-center justify-center py-12 text-muted-foreground">
               Nenhum recurso nesta equipe
             </div>
