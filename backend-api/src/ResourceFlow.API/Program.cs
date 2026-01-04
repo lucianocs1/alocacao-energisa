@@ -83,16 +83,19 @@ using (var scope = app.Services.CreateScope())
     {
         logger.LogInformation("Verificando conexão com banco de dados...");
         
-        // Verificar se a tabela existe
+        // Verificar se as tabelas existem
         bool tablesExist = false;
         try
         {
             var conn = dbContext.Database.GetDbConnection();
             await conn.OpenAsync();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'Departments')";
-            var result = await cmd.ExecuteScalarAsync();
-            tablesExist = result != null && (bool)result;
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'Departments')";
+                var result = await cmd.ExecuteScalarAsync();
+                tablesExist = result != null && (bool)result;
+            }
+            await conn.CloseAsync();
             logger.LogInformation($"Tabelas existem: {tablesExist}");
         }
         catch (Exception ex)
@@ -103,26 +106,33 @@ using (var scope = app.Services.CreateScope())
         if (!tablesExist)
         {
             logger.LogInformation("Tabelas não existem. Criando schema do banco...");
-            
-            // Forçar criação do schema
-            var script = dbContext.Database.GenerateCreateScript();
-            logger.LogInformation("Script de criação gerado.");
-            
-            // Executar o script
-            await dbContext.Database.ExecuteSqlRawAsync(script);
-            logger.LogInformation("Schema criado com sucesso!");
+            try
+            {
+                var script = dbContext.Database.GenerateCreateScript();
+                await dbContext.Database.ExecuteSqlRawAsync(script);
+                logger.LogInformation("✅ Schema criado com sucesso!");
+            }
+            catch (Exception ex)
+            {
+                // Pode falhar se algumas tabelas já existem - isso é ok
+                logger.LogWarning(ex, "Aviso ao criar schema (pode ser parcialmente criado)");
+            }
         }
-        else
+        
+        // Sempre tentar aplicar migrations pendentes
+        try
         {
-            // Tentar aplicar migrations pendentes
-            logger.LogInformation("Verificando migrations pendentes...");
-            var pendingMigrations = dbContext.Database.GetPendingMigrations();
+            var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
             if (pendingMigrations.Any())
             {
                 logger.LogInformation($"Aplicando {pendingMigrations.Count()} migrations pendentes...");
                 await dbContext.Database.MigrateAsync();
-                logger.LogInformation("Migrations aplicadas com sucesso.");
+                logger.LogInformation("✅ Migrations aplicadas com sucesso.");
             }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Aviso ao aplicar migrations");
         }
     }
     catch (Exception ex)
