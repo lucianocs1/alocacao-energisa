@@ -38,8 +38,10 @@ public class CreateDemandRequest
     // Datas das fases opcionais
     public DateTime? HmgStartDate { get; set; }
     public DateTime? HmgEndDate { get; set; }
-    public DateTime? GoLiveDate { get; set; }
-    public DateTime? AssistedOpDate { get; set; }
+    public DateTime? GoLiveStartDate { get; set; }
+    public DateTime? GoLiveEndDate { get; set; }
+    public DateTime? AssistedOpStartDate { get; set; }
+    public DateTime? AssistedOpEndDate { get; set; }
 }
 
 public class UpdateDemandRequest
@@ -100,8 +102,10 @@ public class DemandDto
     // Datas das fases
     public DateTime? HmgStartDate { get; set; }
     public DateTime? HmgEndDate { get; set; }
-    public DateTime? GoLiveDate { get; set; }
-    public DateTime? AssistedOpDate { get; set; }
+    public DateTime? GoLiveStartDate { get; set; }
+    public DateTime? GoLiveEndDate { get; set; }
+    public DateTime? AssistedOpStartDate { get; set; }
+    public DateTime? AssistedOpEndDate { get; set; }
 }
 
 public class PhaseDto

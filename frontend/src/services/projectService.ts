@@ -34,8 +34,10 @@ interface DemandDto {
   phases: PhaseDto[];
   hmgStartDate?: string;
   hmgEndDate?: string;
-  goLiveDate?: string;
-  assistedOpDate?: string;
+  goLiveStartDate?: string;
+  goLiveEndDate?: string;
+  assistedOpStartDate?: string;
+  assistedOpEndDate?: string;
 }
 
 interface PhaseDto {
@@ -67,8 +69,10 @@ interface CreateDemandRequest {
   phases: CreatePhaseRequest[];
   hmgStartDate?: string;
   hmgEndDate?: string;
-  goLiveDate?: string;
-  assistedOpDate?: string;
+  goLiveStartDate?: string;
+  goLiveEndDate?: string;
+  assistedOpStartDate?: string;
+  assistedOpEndDate?: string;
 }
 
 interface CreatePhaseRequest {
@@ -133,8 +137,10 @@ const mapDtoToDemand = (dto: DemandDto): Demand => ({
   phases: dto.phases.map(mapDtoToPhase),
   hmgStartDate: dto.hmgStartDate ? parseDate(dto.hmgStartDate) : undefined,
   hmgEndDate: dto.hmgEndDate ? parseDate(dto.hmgEndDate) : undefined,
-  goLiveDate: dto.goLiveDate ? parseDate(dto.goLiveDate) : undefined,
-  assistedOpDate: dto.assistedOpDate ? parseDate(dto.assistedOpDate) : undefined,
+  goLiveStartDate: dto.goLiveStartDate ? parseDate(dto.goLiveStartDate) : undefined,
+  goLiveEndDate: dto.goLiveEndDate ? parseDate(dto.goLiveEndDate) : undefined,
+  assistedOpStartDate: dto.assistedOpStartDate ? parseDate(dto.assistedOpStartDate) : undefined,
+  assistedOpEndDate: dto.assistedOpEndDate ? parseDate(dto.assistedOpEndDate) : undefined,
 });
 
 const mapDtoToPhase = (dto: PhaseDto): ProjectPhase => ({
@@ -175,12 +181,14 @@ const mapDemandToRequest = (demand: Partial<Demand>): CreateDemandRequest => {
     const startDate = demand.startDate || new Date();
     const hmgStart = demand.hmgStartDate;
     const hmgEnd = demand.hmgEndDate;
-    const goLive = demand.goLiveDate;
-    const assistedOp = demand.assistedOpDate;
+    const goLiveStart = demand.goLiveStartDate;
+    const goLiveEnd = demand.goLiveEndDate;
+    const assistedOpStart = demand.assistedOpStartDate;
+    const assistedOpEnd = demand.assistedOpEndDate;
     const endDate = demand.endDate || new Date();
 
-    // Fase de Construção (início até início de homologação ou GO Live ou fim)
-    const constructionEnd = hmgStart || goLive || endDate;
+    // Fase de Construção (início até início de homologação ou início GO Live ou fim)
+    const constructionEnd = hmgStart || goLiveStart || endDate;
     phases.push({
       type: 'construction',
       name: 'Construção',
@@ -200,40 +208,40 @@ const mapDemandToRequest = (demand: Partial<Demand>): CreateDemandRequest => {
       });
     }
 
-    // GO Live (Marco - se definido)
-    if (goLive) {
+    // GO Live (se definido - agora pode ter período)
+    if (goLiveStart) {
+      const goEnd = goLiveEnd || goLiveStart; // Se não tiver fim, usa a mesma data (marco)
       phases.push({
         type: 'go-live',
         name: 'GO Live',
-        startDate: formatDateOnly(goLive),
-        endDate: formatDateOnly(goLive),
-        isMilestone: true,
+        startDate: formatDateOnly(goLiveStart),
+        endDate: formatDateOnly(goEnd),
+        isMilestone: goLiveStart.getTime() === goEnd.getTime(), // Marco se início = fim
       });
     }
 
     // Operação Assistida (se definida)
-    if (assistedOp && goLive) {
+    if (assistedOpStart) {
+      const opEnd = assistedOpEnd || endDate;
       phases.push({
         type: 'assisted-operation',
         name: 'Operação Assistida',
-        startDate: formatDateOnly(goLive),
-        endDate: formatDateOnly(assistedOp),
+        startDate: formatDateOnly(assistedOpStart),
+        endDate: formatDateOnly(opEnd),
         isMilestone: false,
       });
     }
 
     // Manutenção (do fim da Op. Assistida ou GO Live até o fim do projeto)
-    if (goLive || assistedOp) {
-      const maintenanceStart = assistedOp || goLive;
-      if (maintenanceStart) {
-        phases.push({
-          type: 'maintenance',
-          name: 'Manutenção',
-          startDate: formatDateOnly(maintenanceStart),
-          endDate: formatDateOnly(endDate),
-          isMilestone: false,
-        });
-      }
+    const maintenanceStart = assistedOpEnd || goLiveEnd || goLiveStart;
+    if (maintenanceStart && maintenanceStart < endDate) {
+      phases.push({
+        type: 'maintenance',
+        name: 'Manutenção',
+        startDate: formatDateOnly(maintenanceStart),
+        endDate: formatDateOnly(endDate),
+        isMilestone: false,
+      });
     }
   }
 
@@ -247,8 +255,10 @@ const mapDemandToRequest = (demand: Partial<Demand>): CreateDemandRequest => {
     phases,
     hmgStartDate: demand.hmgStartDate ? formatDateOnly(demand.hmgStartDate) : undefined,
     hmgEndDate: demand.hmgEndDate ? formatDateOnly(demand.hmgEndDate) : undefined,
-    goLiveDate: demand.goLiveDate ? formatDateOnly(demand.goLiveDate) : undefined,
-    assistedOpDate: demand.assistedOpDate ? formatDateOnly(demand.assistedOpDate) : undefined,
+    goLiveStartDate: demand.goLiveStartDate ? formatDateOnly(demand.goLiveStartDate) : undefined,
+    goLiveEndDate: demand.goLiveEndDate ? formatDateOnly(demand.goLiveEndDate) : undefined,
+    assistedOpStartDate: demand.assistedOpStartDate ? formatDateOnly(demand.assistedOpStartDate) : undefined,
+    assistedOpEndDate: demand.assistedOpEndDate ? formatDateOnly(demand.assistedOpEndDate) : undefined,
   };
 };
 

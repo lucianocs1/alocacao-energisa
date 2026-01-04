@@ -109,8 +109,10 @@ export interface Demand {
   // Datas das fases
   hmgStartDate?: Date;    // Início da Homologação
   hmgEndDate?: Date;      // Fim da Homologação
-  goLiveDate?: Date;      // GO Live (Marco)
-  assistedOpDate?: Date;  // Operação Assistida
+  goLiveStartDate?: Date; // Início do GO Live
+  goLiveEndDate?: Date;   // Fim do GO Live
+  assistedOpStartDate?: Date;  // Início da Operação Assistida
+  assistedOpEndDate?: Date;    // Fim da Operação Assistida
   // Campos extras vindos da API (para evitar lookup de projeto)
   _projectName?: string;
   _projectColor?: string;

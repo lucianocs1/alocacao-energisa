@@ -102,8 +102,10 @@ public class ProjectService : IProjectService
                 UpdatedAt = DateTime.UtcNow,
                 HmgStartDate = demandRequest.HmgStartDate,
                 HmgEndDate = demandRequest.HmgEndDate,
-                GoLiveDate = demandRequest.GoLiveDate,
-                AssistedOpDate = demandRequest.AssistedOpDate
+                GoLiveStartDate = demandRequest.GoLiveStartDate,
+                GoLiveEndDate = demandRequest.GoLiveEndDate,
+                AssistedOpStartDate = demandRequest.AssistedOpStartDate,
+                AssistedOpEndDate = demandRequest.AssistedOpEndDate
             };
 
             _context.Demands.Add(demand);
@@ -190,8 +192,10 @@ public class ProjectService : IProjectService
             UpdatedAt = DateTime.UtcNow,
             HmgStartDate = request.HmgStartDate,
             HmgEndDate = request.HmgEndDate,
-            GoLiveDate = request.GoLiveDate,
-            AssistedOpDate = request.AssistedOpDate
+            GoLiveStartDate = request.GoLiveStartDate,
+            GoLiveEndDate = request.GoLiveEndDate,
+            AssistedOpStartDate = request.AssistedOpStartDate,
+            AssistedOpEndDate = request.AssistedOpEndDate
         };
 
         _context.Demands.Add(demand);
@@ -361,8 +365,10 @@ public class ProjectService : IProjectService
             Phases = demand.Phases.Select(MapPhaseToDto).ToList(),
             HmgStartDate = demand.HmgStartDate,
             HmgEndDate = demand.HmgEndDate,
-            GoLiveDate = demand.GoLiveDate,
-            AssistedOpDate = demand.AssistedOpDate
+            GoLiveStartDate = demand.GoLiveStartDate,
+            GoLiveEndDate = demand.GoLiveEndDate,
+            AssistedOpStartDate = demand.AssistedOpStartDate,
+            AssistedOpEndDate = demand.AssistedOpEndDate
         };
     }
 
