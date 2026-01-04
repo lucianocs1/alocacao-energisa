@@ -161,6 +161,9 @@ const mapDtoToAllocation = (dto: AllocationDto): Allocation => {
     isLoan: dto.isLoan,
     sourceTeamId: dto.sourceTeamId,
     allocationType: dto.allocationType || undefined,
+    // Informações adicionais para demandas de outros departamentos
+    demandName: dto.demandName || undefined,
+    projectName: dto.projectName || undefined,
   };
 };
 

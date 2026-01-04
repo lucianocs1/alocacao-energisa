@@ -19,7 +19,29 @@ public class AllocationService : IAllocationService
     {
         var currentYear = year ?? DateTime.Now.Year;
 
-        // Buscar funcionários
+        // Buscar IDs de funcionários emprestados PARA este departamento (recebidos)
+        var loanedInEmployeeIds = new HashSet<Guid>();
+        // Buscar IDs de funcionários emprestados DE este departamento (enviados)
+        var loanedOutEmployeeIds = new HashSet<Guid>();
+        
+        if (teamId.HasValue)
+        {
+            // Funcionários que ESTE departamento pegou emprestado (recebidos)
+            loanedInEmployeeIds = (await _context.Set<EmployeeLoan>()
+                .Where(l => l.Status == LoanStatus.Active && l.TargetDepartmentId == teamId.Value)
+                .Select(l => l.EmployeeId)
+                .ToListAsync())
+                .ToHashSet();
+                
+            // Funcionários que ESTE departamento emprestou (enviados)
+            loanedOutEmployeeIds = (await _context.Set<EmployeeLoan>()
+                .Where(l => l.Status == LoanStatus.Active && l.SourceDepartmentId == teamId.Value)
+                .Select(l => l.EmployeeId)
+                .ToListAsync())
+                .ToHashSet();
+        }
+
+        // Buscar funcionários do departamento + funcionários emprestados recebidos
         var employeesQuery = _context.Employees
             .Include(e => e.Department)
             .Include(e => e.Vacations)
@@ -28,10 +50,18 @@ public class AllocationService : IAllocationService
 
         if (teamId.HasValue)
         {
-            employeesQuery = employeesQuery.Where(e => e.DepartmentId == teamId.Value);
+            // Funcionários do departamento OU funcionários emprestados para este departamento
+            employeesQuery = employeesQuery.Where(e => 
+                e.DepartmentId == teamId.Value || loanedInEmployeeIds.Contains(e.Id));
         }
 
         var employees = await employeesQuery.OrderBy(e => e.Name).ToListAsync();
+        
+        // Separar IDs: funcionários próprios vs emprestados recebidos
+        var ownEmployeeIds = employees
+            .Where(e => teamId.HasValue && e.DepartmentId == teamId.Value)
+            .Select(e => e.Id)
+            .ToHashSet();
 
         // Buscar demandas (do ano atual ou que se estendem para o ano atual)
         var demandsQuery = _context.Demands
@@ -51,7 +81,10 @@ public class AllocationService : IAllocationService
 
         var demands = await demandsQuery.OrderBy(d => d.Name).ToListAsync();
 
-        // Buscar alocações
+        // Buscar alocações - incluir:
+        // 1. Alocações de funcionários do departamento (próprios)
+        // 2. Alocações de funcionários emprestados recebidos (trabalhando aqui)
+        // 3. Alocações de funcionários emprestados enviados (para ver onde estão alocados no outro dept)
         var allocationsQuery = _context.Allocations
             .Include(a => a.Employee)
             .Include(a => a.Demand)
@@ -61,10 +94,17 @@ public class AllocationService : IAllocationService
 
         if (teamId.HasValue)
         {
-            var employeeIds = employees.Select(e => e.Id).ToHashSet();
+            var allRelevantEmployeeIds = employees.Select(e => e.Id).ToHashSet();
+            // Adicionar funcionários emprestados (enviados) para ver suas alocações
+            foreach (var id in loanedOutEmployeeIds)
+            {
+                allRelevantEmployeeIds.Add(id);
+            }
+            
             var demandIds = demands.Select(d => d.Id).ToHashSet();
             allocationsQuery = allocationsQuery.Where(a => 
-                employeeIds.Contains(a.EmployeeId) || (a.DemandId.HasValue && demandIds.Contains(a.DemandId.Value)));
+                allRelevantEmployeeIds.Contains(a.EmployeeId) || 
+                (a.DemandId.HasValue && demandIds.Contains(a.DemandId.Value)));
         }
 
         var allocations = await allocationsQuery.ToListAsync();

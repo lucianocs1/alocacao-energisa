@@ -27,6 +27,7 @@ export default function AllocationPage() {
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]); // Todos os funcionários para empréstimo
   const [guestEmployees, setGuestEmployees] = useState<Employee[]>([]);
+  const [loanedOutEmployeeIds, setLoanedOutEmployeeIds] = useState<string[]>([]); // IDs dos funcionários emprestados (enviados)
   const [receivedLoans, setReceivedLoans] = useState<LoanDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -57,29 +58,41 @@ export default function AllocationPage() {
         const employees = await employeeService.getEmployees();
         setAllEmployees(employees);
         
-        // Carregar empréstimos recebidos pelo departamento
+        // Carregar empréstimos (recebidos e enviados)
         try {
-          const loans = await loanService.getLoansReceived(selectedTeam.id);
-          const activeLoans = loans.filter(l => l.status === 'Active');
-          setReceivedLoans(activeLoans);
+          const [received, sent] = await Promise.all([
+            loanService.getLoansReceived(selectedTeam.id),
+            loanService.getLoansSent(selectedTeam.id)
+          ]);
           
-          // Converter empréstimos em funcionários guest - SOMENTE se houver empréstimos ativos
-          if (activeLoans.length > 0) {
-            const loanedEmployeeIds = activeLoans.map(l => l.employeeId);
-            const guestEmps = employees.filter(e => loanedEmployeeIds.includes(e.id));
+          const activeReceived = received.filter(l => l.status === 'Active');
+          const activeSent = sent.filter(l => l.status === 'Active');
+          
+          setReceivedLoans(activeReceived);
+          
+          // Funcionários emprestados recebidos (aparecem como guest)
+          if (activeReceived.length > 0) {
+            const loanedInIds = activeReceived.map(l => l.employeeId);
+            const guestEmps = employees.filter(e => loanedInIds.includes(e.id));
             setGuestEmployees(guestEmps);
           } else {
             setGuestEmployees([]);
           }
+          
+          // IDs dos funcionários emprestados (enviados) - para mostrar na timeline
+          const sentIds = activeSent.map(l => l.employeeId);
+          setLoanedOutEmployeeIds(sentIds);
+          
         } catch (loanError) {
           console.error('Erro ao carregar empréstimos:', loanError);
-          // Limpar empréstimos se houver erro (API pode não estar disponível ou tabela não existe)
           setReceivedLoans([]);
           setGuestEmployees([]);
+          setLoanedOutEmployeeIds([]);
         }
       } else {
         setGuestEmployees([]);
         setReceivedLoans([]);
+        setLoanedOutEmployeeIds([]);
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -374,6 +387,7 @@ export default function AllocationPage() {
             year={selectedYear}
             guestEmployees={guestEmployees}
             allEmployees={allEmployees}
+            loanedOutEmployeeIds={loanedOutEmployeeIds}
             onAddAllocation={handleAddAllocation}
             onRemoveAllocation={handleRemoveAllocation}
             onAddGuestEmployee={handleAddGuestEmployee}

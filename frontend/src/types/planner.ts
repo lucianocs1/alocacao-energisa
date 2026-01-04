@@ -127,6 +127,10 @@ export interface Allocation {
   isLoan?: boolean; // Marcado quando funcionário é emprestado de outra equipe
   sourceTeamId?: string; // Equipe de origem do empréstimo
   allocationType?: string; // Tipo especial: VACATION, TRAINING, etc.
+  // Informações adicionais para alocações de demandas de outros departamentos
+  demandName?: string;
+  projectName?: string;
+  projectColor?: string;
 }
 
 export interface Holiday {

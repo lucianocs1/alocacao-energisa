@@ -55,7 +55,8 @@ interface TimelineGridProps {
   demands: Demand[];
   allocations: Allocation[];
   year: number; // Ano para exibição e alocação
-  guestEmployees?: Employee[]; // Employees borrowed from other teams
+  guestEmployees?: Employee[]; // Employees borrowed from other teams (received)
+  loanedOutEmployeeIds?: string[]; // IDs of employees loaned OUT to other teams
   allEmployees?: Employee[];   // All employees for borrowing functionality
   onAddAllocation: (allocation: Omit<Allocation, 'id'>) => void;
   onRemoveAllocation: (id: string) => void;
@@ -68,6 +69,7 @@ export function TimelineGrid({
   allocations,
   year,
   guestEmployees = [],
+  loanedOutEmployeeIds = [],
   allEmployees = [],
   onAddAllocation,
   onRemoveAllocation,
@@ -94,6 +96,9 @@ export function TimelineGrid({
 
   // Identify which employees are guests (from other teams)
   const guestEmployeeIds = useMemo(() => new Set(guestEmployees.map(e => e.id)), [guestEmployees]);
+  
+  // Identify which employees are loaned out (to other teams)
+  const loanedOutIds = useMemo(() => new Set(loanedOutEmployeeIds), [loanedOutEmployeeIds]);
 
   const getEmployeeMonthData = (employee: Employee, month: number) => {
     const capacity = getMonthCapacity(month, year, employee);
@@ -235,22 +240,26 @@ export function TimelineGrid({
     toast.success('Recurso emprestado adicionado');
   };
 
-  const renderEmployeeRow = (employee: Employee, isGuest: boolean = false) => {
+  const renderEmployeeRow = (employee: Employee, status: 'own' | 'guest' | 'loaned-out' = 'own') => {
     const employeeTeam = getTeamById(employee.teamId);
     const teamColor = getTeamColor(employee.teamId);
+    const isGuest = status === 'guest';
+    const isLoanedOut = status === 'loaned-out';
     
     return (
       <div 
         key={employee.id}
         className={cn(
           "flex border-t border-border/50 hover:bg-muted/20 transition-colors",
-          isGuest && "bg-muted/10"
+          isGuest && "bg-muted/10",
+          isLoanedOut && "bg-yellow-50/30 dark:bg-yellow-950/10"
         )}
       >
         {/* Employee Info */}
         <div className={cn(
           "w-36 sm:w-44 lg:w-56 flex-shrink-0 p-2 sm:p-3 border-r border-border",
-          isGuest && `border-l-4 ${teamColor}`
+          isGuest && `border-l-4 ${teamColor}`,
+          isLoanedOut && "border-l-4 border-l-yellow-500"
         )}>
           <div className="flex flex-col gap-0.5 sm:gap-1">
             <div className="flex items-center gap-1 sm:gap-2">
@@ -265,11 +274,26 @@ export function TimelineGrid({
                   </TooltipContent>
                 </Tooltip>
               )}
+              {isLoanedOut && (
+                <Tooltip>
+                  <TooltipTrigger>
+                    <ExternalLink className="w-3 h-3 text-yellow-600 flex-shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Emprestado para outro departamento
+                  </TooltipContent>
+                </Tooltip>
+              )}
             </div>
             <span className="text-[10px] sm:text-xs text-muted-foreground truncate">{employee.role}</span>
             {isGuest && employeeTeam && (
               <Badge variant="outline" className={cn("text-[9px] sm:text-[10px] w-fit text-white", teamColor)}>
                 {employeeTeam.name}
+              </Badge>
+            )}
+            {isLoanedOut && (
+              <Badge variant="outline" className="text-[9px] sm:text-[10px] w-fit border-yellow-500 text-yellow-600">
+                Emprestado
               </Badge>
             )}
             {employee.fixedAllocations.length > 0 && (
@@ -359,7 +383,41 @@ export function TimelineGrid({
                         }
                         
                         const demand = demands.find(d => d.id === alloc.demandId);
-                        if (!demand) return null;
+                        
+                        // Se a demanda não for encontrada (ex: alocação de outro departamento),
+                        // usar as informações que vêm da própria alocação
+                        if (!demand) {
+                          // Se não temos demandName, é uma alocação órfã - não exibir
+                          if (!alloc.demandName) return null;
+                          
+                          // Criar objeto demand e project temporários com dados da alocação
+                          return (
+                            <AllocationBlock
+                              key={alloc.id}
+                              demand={{
+                                id: alloc.demandId,
+                                name: alloc.demandName,
+                                projectId: alloc.projectId,
+                                teamId: '',
+                                startDate: new Date(),
+                                endDate: new Date(),
+                                phases: [],
+                                totalHours: 0,
+                                allocatedHours: 0,
+                                status: 'allocated',
+                                createdAt: new Date(),
+                              }}
+                              project={{
+                                id: alloc.projectId,
+                                name: alloc.projectName || 'Projeto Externo',
+                                color: '#6b7280', // Cor cinza para projetos externos
+                              }}
+                              hours={alloc.hours}
+                              isLoan={true} // Marcar como empréstimo já que é de outro departamento
+                              onRemove={() => onRemoveAllocation(alloc.id)}
+                            />
+                          );
+                        }
                         
                         // Usar dados do projeto que vem junto com a demanda
                         const projectInfo = {
@@ -447,21 +505,24 @@ export function TimelineGrid({
 
         {/* Body - Team Employees */}
         <div className="border-b border-border">
-          {/* Team Employees */}
-          {employees.map(employee => renderEmployeeRow(employee, false))}
+          {/* Team Employees - separar próprios de emprestados (enviados) */}
+          {employees.map(employee => {
+            const isLoanedOut = loanedOutIds.has(employee.id);
+            return renderEmployeeRow(employee, isLoanedOut ? 'loaned-out' : 'own');
+          })}
           
-          {/* Guest Employees (borrowed from other teams) */}
+          {/* Guest Employees (borrowed from other teams - received) */}
           {guestEmployees.length > 0 && (
             <>
               <div className="flex bg-muted/10 border-t border-dashed border-border">
                 <div className="w-36 sm:w-44 lg:w-56 flex-shrink-0 p-1.5 px-2 sm:px-3 border-r border-border">
                   <span className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide">
-                    Recursos Emprestados
+                    Recursos Emprestados (Recebidos)
                   </span>
                 </div>
                 <div className="flex-1" />
               </div>
-              {guestEmployees.map(employee => renderEmployeeRow(employee, true))}
+              {guestEmployees.map(employee => renderEmployeeRow(employee, 'guest'))}
             </>
           )}
           
