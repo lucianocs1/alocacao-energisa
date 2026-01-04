@@ -46,10 +46,8 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     const fetchDepartments = async () => {
       try {
         setLoading(true);
-        console.log('🔍 Buscando departamentos da API...');
         
         const response = await api.get<Department[]>('/api/departments');
-        console.log('✅ Departamentos recebidos:', response.data);
         
         if (response.data && response.data.length > 0) {
           // Converter departamentos em teams com cores
@@ -59,8 +57,6 @@ export function TeamProvider({ children }: { children: ReactNode }) {
             color: departmentColors[index % departmentColors.length],
             members: [],
           }));
-
-          console.log('📋 Teams mapeados:', teamsFromApi);
           setTeams(teamsFromApi);
 
           // Definir equipe selecionada baseado no papel
