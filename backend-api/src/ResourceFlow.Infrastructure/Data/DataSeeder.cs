@@ -71,7 +71,7 @@ public static class DataSeeder
             {
                 Id = Guid.NewGuid(),
                 Email = "gerente@resourceflow.com",
-                FullName = "Gerente Sistema",
+                FullName = "Gerente",
                 PasswordHash = HashPassword("senha123"),
                 Role = UserRole.Manager,
                 DepartmentId = null,
@@ -82,8 +82,8 @@ public static class DataSeeder
             new User
             {
                 Id = Guid.NewGuid(),
-                Email = "coordenador.contabil@resourceflow.com",
-                FullName = "Coordenador Contábil",
+                Email = "coordenador.obras@resourceflow.com",
+                FullName = "Coordenador",
                 PasswordHash = HashPassword("senha123"),
                 Role = UserRole.Coordinator,
                 DepartmentId = contDept?.Id,
@@ -94,8 +94,8 @@ public static class DataSeeder
             new User
             {
                 Id = Guid.NewGuid(),
-                Email = "coordenador.fiscal@resourceflow.com",
-                FullName = "Coordenador Fiscal",
+                Email = "coordenador.financeiro@resourceflow.com",
+                FullName = "Coordenador",
                 PasswordHash = HashPassword("senha123"),
                 Role = UserRole.Coordinator,
                 DepartmentId = fiscDept?.Id,
