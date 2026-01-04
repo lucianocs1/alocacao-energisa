@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResourceFlow.Application.DTOs.Calendar;
 using ResourceFlow.Application.Interfaces;
+using System.Security.Claims;
 
 namespace ResourceFlow.API.Controllers;
 
@@ -69,7 +70,7 @@ public class CalendarController : ControllerBase
     public async Task<ActionResult<CalendarEventDto>> CreateEvent(CreateCalendarEventRequest request)
     {
         // Verificar se é gerente
-        var userRole = User.FindFirst("role")?.Value;
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
         if (userRole != "1" && userRole != "Manager" && userRole != "Gerente")
         {
             return Forbid();
@@ -85,7 +86,7 @@ public class CalendarController : ControllerBase
     [HttpPut("{id}")]
     public async Task<ActionResult<CalendarEventDto>> UpdateEvent(Guid id, UpdateCalendarEventRequest request)
     {
-        var userRole = User.FindFirst("role")?.Value;
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
         if (userRole != "1" && userRole != "Manager" && userRole != "Gerente")
         {
             return Forbid();
@@ -103,7 +104,7 @@ public class CalendarController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<ActionResult> DeleteEvent(Guid id)
     {
-        var userRole = User.FindFirst("role")?.Value;
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
         if (userRole != "1" && userRole != "Manager" && userRole != "Gerente")
         {
             return Forbid();
@@ -121,7 +122,7 @@ public class CalendarController : ControllerBase
     [HttpPost("seed/{year}")]
     public async Task<ActionResult> SeedHolidays(int year)
     {
-        var userRole = User.FindFirst("role")?.Value;
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
         if (userRole != "1" && userRole != "Manager" && userRole != "Gerente")
         {
             return Forbid();
