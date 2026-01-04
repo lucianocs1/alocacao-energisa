@@ -233,6 +233,7 @@ export const ProjectDemands = ({ onValidationChange }: ProjectDemandsProps) => {
                 <h4 className="font-semibold text-sm">Datas das Fases (Opcional)</h4>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Homologação */}
                   <div className="space-y-2">
                     <Label>Início Homologação</Label>
                     <Input
@@ -251,21 +252,41 @@ export const ProjectDemands = ({ onValidationChange }: ProjectDemandsProps) => {
                     />
                   </div>
 
+                  {/* GO Live */}
                   <div className="space-y-2">
-                    <Label>GO Live</Label>
+                    <Label>Início GO Live</Label>
                     <Input
                       type="date"
-                      value={demand.goLiveDate ? demand.goLiveDate.toISOString().split('T')[0] : ''}
-                      onChange={(e) => updateDemand(index, 'goLiveDate', e.target.value ? new Date(e.target.value) : null)}
+                      value={demand.goLiveStartDate ? demand.goLiveStartDate.toISOString().split('T')[0] : ''}
+                      onChange={(e) => updateDemand(index, 'goLiveStartDate', e.target.value ? new Date(e.target.value) : null)}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Operação Assistida</Label>
+                    <Label>Fim GO Live</Label>
                     <Input
                       type="date"
-                      value={demand.assistedOpDate ? demand.assistedOpDate.toISOString().split('T')[0] : ''}
-                      onChange={(e) => updateDemand(index, 'assistedOpDate', e.target.value ? new Date(e.target.value) : null)}
+                      value={demand.goLiveEndDate ? demand.goLiveEndDate.toISOString().split('T')[0] : ''}
+                      onChange={(e) => updateDemand(index, 'goLiveEndDate', e.target.value ? new Date(e.target.value) : null)}
+                    />
+                  </div>
+
+                  {/* Operação Assistida */}
+                  <div className="space-y-2">
+                    <Label>Início Op. Assistida</Label>
+                    <Input
+                      type="date"
+                      value={demand.assistedOpStartDate ? demand.assistedOpStartDate.toISOString().split('T')[0] : ''}
+                      onChange={(e) => updateDemand(index, 'assistedOpStartDate', e.target.value ? new Date(e.target.value) : null)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Fim Op. Assistida</Label>
+                    <Input
+                      type="date"
+                      value={demand.assistedOpEndDate ? demand.assistedOpEndDate.toISOString().split('T')[0] : ''}
+                      onChange={(e) => updateDemand(index, 'assistedOpEndDate', e.target.value ? new Date(e.target.value) : null)}
                     />
                   </div>
                 </div>
