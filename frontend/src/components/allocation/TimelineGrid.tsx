@@ -249,16 +249,16 @@ export function TimelineGrid({
       >
         {/* Employee Info */}
         <div className={cn(
-          "w-56 flex-shrink-0 p-3 border-r border-border",
+          "w-36 sm:w-44 lg:w-56 flex-shrink-0 p-2 sm:p-3 border-r border-border",
           isGuest && `border-l-4 ${teamColor}`
         )}>
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-sm">{employee.name}</span>
+          <div className="flex flex-col gap-0.5 sm:gap-1">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <span className="font-medium text-xs sm:text-sm truncate">{employee.name}</span>
               {isGuest && (
                 <Tooltip>
                   <TooltipTrigger>
-                    <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                    <ExternalLink className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                   </TooltipTrigger>
                   <TooltipContent>
                     Emprestado de {employeeTeam?.name}
@@ -266,14 +266,14 @@ export function TimelineGrid({
                 </Tooltip>
               )}
             </div>
-            <span className="text-xs text-muted-foreground">{employee.role}</span>
+            <span className="text-[10px] sm:text-xs text-muted-foreground truncate">{employee.role}</span>
             {isGuest && employeeTeam && (
-              <Badge variant="outline" className={cn("text-[10px] w-fit text-white", teamColor)}>
+              <Badge variant="outline" className={cn("text-[9px] sm:text-[10px] w-fit text-white", teamColor)}>
                 {employeeTeam.name}
               </Badge>
             )}
             {employee.fixedAllocations.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1">
+              <div className="flex flex-wrap gap-0.5 sm:gap-1 mt-0.5 sm:mt-1">
                 {employee.fixedAllocations.map(fa => (
                   <Badge 
                     key={fa.id} 
@@ -298,7 +298,7 @@ export function TimelineGrid({
             <TooltipTrigger asChild>
               <div 
                 className={cn(
-                  "flex-1 min-w-[80px] p-2 border-r border-border/50 last:border-r-0 relative",
+                  "flex-1 min-w-[60px] sm:min-w-[70px] lg:min-w-[80px] p-1 sm:p-2 border-r border-border/50 last:border-r-0 relative",
                   "cursor-pointer transition-colors",
                   monthData.isOnVacation ? "bg-capacity-blocked/20" : "hover:bg-accent/50"
                 )}
@@ -306,11 +306,11 @@ export function TimelineGrid({
               >
                 {monthData.isOnVacation ? (
                   <div className="flex items-center justify-center h-full text-muted-foreground">
-                    <Umbrella className="w-4 h-4 mr-1" />
-                    <span className="text-xs">Férias</span>
+                    <Umbrella className="w-3 h-3 sm:w-4 sm:h-4 mr-0.5 sm:mr-1" />
+                    <span className="text-[10px] sm:text-xs">Férias</span>
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-col gap-1 sm:gap-1.5">
                     <CapacityBar
                       utilized={monthData.totalAllocated}
                       total={monthData.capacity.totalHours}
@@ -319,7 +319,7 @@ export function TimelineGrid({
                       size="sm"
                     />
                     {/* Allocations displayed side by side */}
-                    <div className="flex flex-row flex-wrap gap-1">
+                    <div className="flex flex-row flex-wrap gap-0.5 sm:gap-1">
                       {monthData.allocations.map(alloc => {
                         // Verificar se é um tipo especial
                         const isSpecialType = Object.values(SPECIAL_ALLOCATION_TYPES).includes(alloc.demandId as any);
@@ -407,19 +407,19 @@ export function TimelineGrid({
 
   return (
     <div className="w-full overflow-x-auto">
-      <div className="min-w-[1200px]">
+      <div className="min-w-[900px] lg:min-w-[1200px]">
         {/* Header */}
         <div className="flex border-b border-border sticky top-0 bg-background z-10">
-          <div className="w-56 flex-shrink-0 p-3 font-medium text-sm border-r border-border flex items-center justify-between">
+          <div className="w-36 sm:w-44 lg:w-56 flex-shrink-0 p-2 sm:p-3 font-medium text-xs sm:text-sm border-r border-border flex items-center justify-between">
             <span>Recurso</span>
             {onAddGuestEmployee && (
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="h-7 px-2"
+                className="h-6 sm:h-7 px-1 sm:px-2"
                 onClick={() => setGuestDialogOpen(true)}
               >
-                <UserPlus className="w-4 h-4" />
+                <UserPlus className="w-3 h-3 sm:w-4 sm:h-4" />
               </Button>
             )}
           </div>
@@ -429,10 +429,10 @@ export function TimelineGrid({
               <Tooltip key={month}>
                 <TooltipTrigger asChild>
                   <div 
-                    className="flex-1 min-w-[80px] p-3 text-center text-sm font-medium border-r border-border last:border-r-0 cursor-help"
+                    className="flex-1 min-w-[60px] sm:min-w-[70px] lg:min-w-[80px] p-1.5 sm:p-3 text-center text-xs sm:text-sm font-medium border-r border-border last:border-r-0 cursor-help"
                   >
-                    <div>{month}</div>
-                    <div className="text-xs text-muted-foreground font-normal">
+                    <div className="truncate">{month.slice(0, 3)}</div>
+                    <div className="text-[10px] sm:text-xs text-muted-foreground font-normal hidden sm:block">
                       {monthInfo.workingDays}d • {monthInfo.totalHours}h
                     </div>
                   </div>
@@ -454,8 +454,8 @@ export function TimelineGrid({
           {guestEmployees.length > 0 && (
             <>
               <div className="flex bg-muted/10 border-t border-dashed border-border">
-                <div className="w-56 flex-shrink-0 p-1.5 px-3 border-r border-border">
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                <div className="w-36 sm:w-44 lg:w-56 flex-shrink-0 p-1.5 px-2 sm:px-3 border-r border-border">
+                  <span className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide">
                     Recursos Emprestados
                   </span>
                 </div>

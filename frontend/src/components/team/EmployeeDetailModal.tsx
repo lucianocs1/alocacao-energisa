@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Employee, VacationPeriod, FixedAllocation } from '@/types/planner';
 import { employeeService } from '@/services/employeeService';
 import { useTeam } from '@/contexts/TeamContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, Plus, Trash2, Calendar, Briefcase, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -34,10 +35,23 @@ interface EmployeeDetailModalProps {
 
 export function EmployeeDetailModal({ open, onClose, employee, onSave }: EmployeeDetailModalProps) {
   const { selectedTeam, teams } = useTeam();
+  const { usuario } = useAuth();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
   const [roles, setRoles] = useState<{ value: string; label: string }[]>([]);
   const [localEmployee, setLocalEmployee] = useState<Employee>(employee);
+  
+  // Coordenador só pode editar no seu próprio departamento
+  const isCoordinator = usuario?.role === 'Coordenador';
+  const userDepartmentId = usuario?.departmentId;
+  
+  // Filtra departamentos disponíveis: coordenador só vê o seu, gerente vê todos
+  const availableDepartments = useMemo(() => {
+    if (isCoordinator && userDepartmentId) {
+      return teams.filter(team => team.id === userDepartmentId);
+    }
+    return teams;
+  }, [teams, isCoordinator, userDepartmentId]);
   
   // Form states
   const [formData, setFormData] = useState({
@@ -255,12 +269,13 @@ export function EmployeeDetailModal({ open, onClose, employee, onSave }: Employe
               <Select
                 value={formData.departmentId}
                 onValueChange={(value) => setFormData({ ...formData, departmentId: value })}
+                disabled={isCoordinator}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o departamento" />
                 </SelectTrigger>
                 <SelectContent>
-                  {teams.map((team) => (
+                  {availableDepartments.map((team) => (
                     <SelectItem key={team.id} value={team.id}>
                       {team.name}
                     </SelectItem>

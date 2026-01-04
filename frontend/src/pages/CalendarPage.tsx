@@ -192,18 +192,18 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Calendário Corporativo</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold">Calendário Corporativo</h1>
+          <p className="text-sm text-muted-foreground hidden sm:block">
             Gerencie feriados, dias ponte e recessos
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-24 sm:w-32 h-8 sm:h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -217,9 +217,9 @@ export default function CalendarPage() {
             <>
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => handleOpenDialog()}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Novo Evento
+                  <Button onClick={() => handleOpenDialog()} size="sm" className="sm:size-default">
+                    <Plus className="w-4 h-4 mr-1 sm:mr-2" />
+                    <span className="hidden xs:inline">Novo</span> Evento
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[500px]">
@@ -360,34 +360,36 @@ export default function CalendarPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
         <Card className="border-red-200 bg-red-50/50">
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1">
+          <CardHeader className="p-3 sm:pb-2 sm:pt-6 sm:px-6">
+            <CardDescription className="flex items-center gap-1 text-[10px] sm:text-sm">
               <Flag className="w-3 h-3" />
-              Feriados Nacionais
+              <span className="hidden sm:inline">Feriados Nacionais</span>
+              <span className="sm:hidden">Nacionais</span>
             </CardDescription>
-            <CardTitle className="text-3xl">{nationalHolidaysStats.totalDays}</CardTitle>
+            <CardTitle className="text-xl sm:text-3xl">{nationalHolidaysStats.totalDays}</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-500" />
-              <span className="text-xs text-muted-foreground">{nationalHolidaysStats.totalHours}h perdidas</span>
+          <CardContent className="p-3 pt-0 sm:px-6 sm:pb-6">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-red-500" />
+              <span className="text-[10px] sm:text-xs text-muted-foreground">{nationalHolidaysStats.totalHours}h</span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1">
+          <CardHeader className="p-3 sm:pb-2 sm:pt-6 sm:px-6">
+            <CardDescription className="flex items-center gap-1 text-[10px] sm:text-sm">
               <Building2 className="w-3 h-3" />
-              Feriados Municipais
+              <span className="hidden sm:inline">Feriados Municipais</span>
+              <span className="sm:hidden">Municipais</span>
             </CardDescription>
-            <CardTitle className="text-3xl">{summary?.totalHolidays || 0}</CardTitle>
+            <CardTitle className="text-xl sm:text-3xl">{summary?.totalHolidays || 0}</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-green-500" />
+          <CardContent className="p-3 pt-0 sm:px-6 sm:pb-6">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-green-500" />
               <span className="text-xs text-muted-foreground">dias</span>
             </div>
           </CardContent>

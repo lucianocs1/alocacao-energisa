@@ -310,12 +310,12 @@ const ProjectsHubPage = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Hub de Projetos</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold">Hub de Projetos</h1>
+          <p className="text-sm text-muted-foreground hidden sm:block">
             {isManager 
               ? 'Visão consolidada de todos os projetos e suas demandas'
               : 'Projetos relacionados à sua equipe'
@@ -326,6 +326,7 @@ const ProjectsHubPage = () => {
           <Button
             variant="outline"
             size="icon"
+            className="h-8 w-8 sm:h-9 sm:w-9"
             onClick={() => refreshProjects()}
             title="Atualizar projetos"
           >
@@ -334,18 +335,20 @@ const ProjectsHubPage = () => {
           {isManager && (
             <Button
               onClick={() => setCreateProjectOpen(true)}
+              size="sm"
+              className="sm:size-default"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Projeto
+              <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+              <span className="hidden xs:inline">Novo</span> Projeto
             </Button>
           )}
         </div>
       </div>
 
-      {/* Phase Legend */}
-      <Card className="mb-6">
+      {/* Phase Legend - hidden on mobile */}
+      <Card className="hidden sm:block">
         <CardContent className="py-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <span className="text-sm font-medium text-muted-foreground">Legenda de Fases:</span>
             <GanttLegend />
           </div>
@@ -353,35 +356,35 @@ const ProjectsHubPage = () => {
       </Card>
 
       {/* Global Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{filteredProjects.length}</div>
-            <p className="text-xs text-muted-foreground">Projetos Ativos</p>
+          <CardContent className="p-3 sm:pt-6 sm:pb-4 sm:px-6">
+            <div className="text-lg sm:text-2xl font-bold">{filteredProjects.length}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Projetos Ativos</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{globalStats.total}</div>
-            <p className="text-xs text-muted-foreground">Total Demandas</p>
+          <CardContent className="p-3 sm:pt-6 sm:pb-4 sm:px-6">
+            <div className="text-lg sm:text-2xl font-bold">{globalStats.total}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Total Demandas</p>
           </CardContent>
         </Card>
         <Card className="border-yellow-200 bg-yellow-50/50">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-yellow-700">{globalStats.pending}</div>
-            <p className="text-xs text-yellow-600">Pendentes</p>
+          <CardContent className="p-3 sm:pt-6 sm:pb-4 sm:px-6">
+            <div className="text-lg sm:text-2xl font-bold text-yellow-700">{globalStats.pending}</div>
+            <p className="text-[10px] sm:text-xs text-yellow-600">Pendentes</p>
           </CardContent>
         </Card>
         <Card className="border-orange-200 bg-orange-50/50">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-orange-700">{globalStats.partial}</div>
-            <p className="text-xs text-orange-600">Parcialmente Alocadas</p>
+          <CardContent className="p-3 sm:pt-6 sm:pb-4 sm:px-6">
+            <div className="text-lg sm:text-2xl font-bold text-orange-700">{globalStats.partial}</div>
+            <p className="text-[10px] sm:text-xs text-orange-600">Parcialmente Alocadas</p>
           </CardContent>
         </Card>
-        <Card className="border-green-200 bg-green-50/50">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-700">{globalStats.allocated}</div>
-            <p className="text-xs text-green-600">Totalmente Alocadas</p>
+        <Card className="border-green-200 bg-green-50/50 col-span-2 sm:col-span-1">
+          <CardContent className="p-3 sm:pt-6 sm:pb-4 sm:px-6">
+            <div className="text-lg sm:text-2xl font-bold text-green-700">{globalStats.allocated}</div>
+            <p className="text-[10px] sm:text-xs text-green-600">Totalmente Alocadas</p>
           </CardContent>
         </Card>
       </div>

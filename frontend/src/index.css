@@ -208,4 +208,55 @@
       box-shadow: 0 0 0 8px hsl(var(--destructive) / 0);
     }
   }
+
+  /* Responsive utilities */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Mobile-first responsive text */
+  .text-responsive-sm {
+    @apply text-xs sm:text-sm;
+  }
+
+  .text-responsive-base {
+    @apply text-sm sm:text-base;
+  }
+
+  .text-responsive-lg {
+    @apply text-base sm:text-lg lg:text-xl;
+  }
+
+  /* Responsive padding */
+  .p-responsive {
+    @apply p-3 sm:p-4 lg:p-6;
+  }
+
+  /* Responsive gap */
+  .gap-responsive {
+    @apply gap-2 sm:gap-3 lg:gap-4;
+  }
+
+  /* Timeline responsive */
+  .timeline-cell {
+    @apply border-r border-border p-1 sm:p-2 transition-colors duration-200;
+    min-width: 60px;
+  }
+
+  @media (min-width: 640px) {
+    .timeline-cell {
+      min-width: 80px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .timeline-cell {
+      min-width: 100px;
+    }
+  }
 }

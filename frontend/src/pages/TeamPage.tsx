@@ -129,58 +129,58 @@ export default function TeamPage() {
   const currentMonth = currentDate.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
 
   return (
-    <div className="p-6 space-y-6 fade-in">
+    <div className="space-y-4 sm:space-y-6 fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold">Gestão de Equipe</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-bold">Gestão de Equipe</h1>
             {selectedTeam && (
               <span className={cn("px-2 py-1 rounded text-xs text-white", selectedTeam.color)}>
                 {selectedTeam.name}
               </span>
             )}
           </div>
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground hidden sm:block">
             Gerencie recursos, férias e alocações fixas
           </p>
         </div>
-        <Button onClick={handleNewEmployee}>
+        <Button onClick={handleNewEmployee} size="sm" className="sm:size-default">
           <Plus className="w-4 h-4 mr-2" />
-          Novo Recurso
+          <span className="hidden xs:inline">Novo</span> Recurso
         </Button>
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="p-3 rounded-lg bg-primary/10">
-              <Users className="w-5 h-5 text-primary" />
+          <CardContent className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4">
+            <div className="p-2 sm:p-3 rounded-lg bg-primary/10">
+              <Users className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total de Recursos</p>
-              <p className="text-2xl font-bold">{employees.length}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Total de Recursos</p>
+              <p className="text-lg sm:text-2xl font-bold">{employees.length}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Capacidade ({currentMonth})</p>
-            <p className="text-2xl font-bold">{totalCapacity}h</p>
-            <p className="text-xs text-muted-foreground">Varia por mês</p>
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">Capacidade ({currentMonth})</p>
+            <p className="text-lg sm:text-2xl font-bold">{totalCapacity}h</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">Varia por mês</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Horas Fixas/Mês</p>
-            <p className="text-2xl font-bold">{totalFixedHours}h</p>
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">Horas Fixas/Mês</p>
+            <p className="text-lg sm:text-2xl font-bold">{totalFixedHours}h</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Disponível ({currentMonth})</p>
-            <p className="text-2xl font-bold text-success">{totalAvailable}h</p>
+          <CardContent className="p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">Disponível ({currentMonth})</p>
+            <p className="text-lg sm:text-2xl font-bold text-success">{totalAvailable}h</p>
           </CardContent>
         </Card>
       </div>
@@ -191,7 +191,7 @@ export default function TeamPage() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {employees.length > 0 ? (
             employees.map(employee => (
               <EmployeeCard 

@@ -3,12 +3,17 @@ import { NavLink } from '@/components/NavLink';
 import { cn } from '@/lib/utils';
 import { useTeam } from '@/contexts/TeamContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useScreenSize } from '@/hooks/use-mobile';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+
+interface AppSidebarProps {
+  onNavigate?: () => void;
+}
 
 const navItems = [
   { 
@@ -49,15 +54,28 @@ const navItems = [
   },
 ];
 
-export function AppSidebar() {
+export function AppSidebar({ onNavigate }: AppSidebarProps) {
   const { teams, selectedTeam, setSelectedTeam, isCoordinator } = useTeam();
   const { usuario } = useAuth();
+  const screenSize = useScreenSize();
+
+  // Sidebar mais compacta em notebooks
+  const isCompact = screenSize === 'notebook';
 
   return (
-    <aside className="w-64 h-full bg-sidebar border-r border-sidebar-border flex flex-col">
+    <aside className={cn(
+      "h-full bg-sidebar border-r border-sidebar-border flex flex-col",
+      isCompact ? "w-56" : "w-64"
+    )}>
       {/* Team Selector */}
-      <div className="px-3 py-4 border-b border-sidebar-border">
-        <p className="text-xs text-sidebar-foreground/60 px-3 mb-2">Equipe Ativa</p>
+      <div className={cn(
+        "border-b border-sidebar-border",
+        isCompact ? "px-2 py-3" : "px-3 py-4"
+      )}>
+        <p className={cn(
+          "text-sidebar-foreground/60 mb-2",
+          isCompact ? "text-[10px] px-2" : "text-xs px-3"
+        )}>Equipe Ativa</p>
         {isCoordinator ? (
           // Coordenadores veem apenas sua equipe (sem dropdown)
           <div className={cn(
@@ -107,21 +125,23 @@ export function AppSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4">
+      <nav className={cn("flex-1 py-4", isCompact ? "px-2" : "px-3")}>
         <ul className="space-y-1">
           {navItems.map((item) => (
             <li key={item.url}>
               <NavLink
                 to={item.url}
+                onClick={onNavigate}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
-                  "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                  "flex items-center gap-3 rounded-lg transition-all duration-200",
+                  "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+                  isCompact ? "px-2 py-2" : "px-3 py-2.5"
                 )}
                 activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
               >
-                <item.icon className="w-5 h-5" />
+                <item.icon className={cn(isCompact ? "w-4 h-4" : "w-5 h-5")} />
                 <div className="flex flex-col">
-                  <span className="text-sm">{item.title}</span>
+                  <span className={cn(isCompact ? "text-xs" : "text-sm")}>{item.title}</span>
                 </div>
               </NavLink>
             </li>

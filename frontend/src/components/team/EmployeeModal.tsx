@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Employee } from '@/types/planner';
 import { employeeService } from '@/services/employeeService';
 import { useTeam } from '@/contexts/TeamContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 interface EmployeeModalProps {
@@ -19,13 +20,34 @@ interface EmployeeModalProps {
 
 export function EmployeeModal({ open, onClose, employee, onSave, onDelete }: EmployeeModalProps) {
   const { selectedTeam, teams } = useTeam();
+  const { usuario } = useAuth();
   const [loading, setLoading] = useState(false);
   const [roles, setRoles] = useState<{ value: string; label: string }[]>([]);
   
+  // Coordenador só pode criar/editar no seu próprio departamento
+  const isCoordinator = usuario?.role === 'Coordenador';
+  const userDepartmentId = usuario?.departmentId;
+  
+  // Filtra departamentos disponíveis: coordenador só vê o seu, gerente vê todos
+  const availableDepartments = useMemo(() => {
+    if (isCoordinator && userDepartmentId) {
+      return teams.filter(team => team.id === userDepartmentId);
+    }
+    return teams;
+  }, [teams, isCoordinator, userDepartmentId]);
+  
+  // Define o departamento inicial
+  const getInitialDepartmentId = () => {
+    if (isCoordinator && userDepartmentId) {
+      return userDepartmentId;
+    }
+    return selectedTeam?.id || '';
+  };
+
   const [formData, setFormData] = useState({
     name: '',
     role: '',
-    departmentId: selectedTeam?.id || '',
+    departmentId: getInitialDepartmentId(),
     dailyHours: 8,
   });
 
@@ -46,14 +68,18 @@ export function EmployeeModal({ open, onClose, employee, onSave, onDelete }: Emp
         dailyHours: employee.dailyHours,
       });
     } else {
+      // Coordenador sempre usa seu departamento, gerente usa o selecionado
+      const defaultDepartmentId = isCoordinator && userDepartmentId 
+        ? userDepartmentId 
+        : (selectedTeam?.id || '');
       setFormData({
         name: '',
         role: '',
-        departmentId: selectedTeam?.id || '',
+        departmentId: defaultDepartmentId,
         dailyHours: 8,
       });
     }
-  }, [employee, selectedTeam]);
+  }, [employee, selectedTeam, isCoordinator, userDepartmentId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,13 +147,14 @@ export function EmployeeModal({ open, onClose, employee, onSave, onDelete }: Emp
             <Select
               value={formData.departmentId}
               onValueChange={(value) => setFormData({ ...formData, departmentId: value })}
+              disabled={isCoordinator}
               required
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o departamento" />
               </SelectTrigger>
               <SelectContent>
-                {teams.map((team) => (
+                {availableDepartments.map((team) => (
                   <SelectItem key={team.id} value={team.id}>
                     {team.name}
                   </SelectItem>

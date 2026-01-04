@@ -20,6 +20,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<EmployeeFixedAllocation> EmployeeFixedAllocations { get; set; }
     public DbSet<Allocation> Allocations { get; set; }
     public DbSet<CalendarEvent> CalendarEvents { get; set; }
+    public DbSet<EmployeeLoan> EmployeeLoans { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -235,6 +236,47 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.Year);
             entity.HasIndex(e => e.Date);
             entity.HasIndex(e => new { e.Year, e.Type });
+        });
+
+        // Configuração da entidade EmployeeLoan
+        modelBuilder.Entity<EmployeeLoan>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Reason).HasMaxLength(500);
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+            entity.Property(e => e.StartDate).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            // Relacionamento com Employee
+            entity.HasOne(e => e.Employee)
+                .WithMany()
+                .HasForeignKey(e => e.EmployeeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Relacionamento com SourceDepartment
+            entity.HasOne(e => e.SourceDepartment)
+                .WithMany()
+                .HasForeignKey(e => e.SourceDepartmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Relacionamento com TargetDepartment
+            entity.HasOne(e => e.TargetDepartment)
+                .WithMany()
+                .HasForeignKey(e => e.TargetDepartmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Relacionamento com User (quem solicitou)
+            entity.HasOne(e => e.RequestedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.RequestedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Índices
+            entity.HasIndex(e => e.EmployeeId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => new { e.TargetDepartmentId, e.Status });
+            entity.HasIndex(e => new { e.SourceDepartmentId, e.Status });
         });
     }
 }

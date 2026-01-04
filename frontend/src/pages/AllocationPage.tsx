@@ -2,9 +2,10 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { TimelineGrid } from '@/components/allocation/TimelineGrid';
 import { allocationService, AllocationPageData } from '@/services/allocationService';
 import { employeeService } from '@/services/employeeService';
+import { loanService, LoanDto } from '@/services/loanService';
 import { Allocation, Employee, Demand } from '@/types/planner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Briefcase, Clock, AlertTriangle, Calendar, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, Briefcase, Clock, AlertTriangle, Calendar, Loader2, ChevronLeft, ChevronRight, UserPlus, ArrowLeftRight } from 'lucide-react';
 import { useCalendar } from '@/hooks/useCalendar';
 import { Badge } from '@/components/ui/badge';
 import { useTeam } from '@/contexts/TeamContext';
@@ -18,14 +19,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { RequestLoanModal } from '@/components/allocation/RequestLoanModal';
+import { ManageLoansModal } from '@/components/allocation/ManageLoansModal';
 
 export default function AllocationPage() {
   const [pageData, setPageData] = useState<AllocationPageData | null>(null);
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]); // Todos os funcionários para empréstimo
   const [guestEmployees, setGuestEmployees] = useState<Employee[]>([]);
+  const [receivedLoans, setReceivedLoans] = useState<LoanDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  
+  // Modais de empréstimo
+  const [requestLoanModalOpen, setRequestLoanModalOpen] = useState(false);
+  const [manageLoansModalOpen, setManageLoansModalOpen] = useState(false);
   
   const { getMonthCapacity, holidays } = useCalendar(selectedYear);
   const { selectedTeam } = useTeam();
@@ -48,6 +56,30 @@ export default function AllocationPage() {
       if (selectedTeam) {
         const employees = await employeeService.getEmployees();
         setAllEmployees(employees);
+        
+        // Carregar empréstimos recebidos pelo departamento
+        try {
+          const loans = await loanService.getLoansReceived(selectedTeam.id);
+          const activeLoans = loans.filter(l => l.status === 'Active');
+          setReceivedLoans(activeLoans);
+          
+          // Converter empréstimos em funcionários guest - SOMENTE se houver empréstimos ativos
+          if (activeLoans.length > 0) {
+            const loanedEmployeeIds = activeLoans.map(l => l.employeeId);
+            const guestEmps = employees.filter(e => loanedEmployeeIds.includes(e.id));
+            setGuestEmployees(guestEmps);
+          } else {
+            setGuestEmployees([]);
+          }
+        } catch (loanError) {
+          console.error('Erro ao carregar empréstimos:', loanError);
+          // Limpar empréstimos se houver erro (API pode não estar disponível ou tabela não existe)
+          setReceivedLoans([]);
+          setGuestEmployees([]);
+        }
+      } else {
+        setGuestEmployees([]);
+        setReceivedLoans([]);
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -144,6 +176,11 @@ export default function AllocationPage() {
     }
   };
 
+  // Handler quando um empréstimo é criado ou modificado
+  const handleLoanChanged = () => {
+    loadPageData();
+  };
+
   // Calcular estatísticas
   const totalHoursAllocated = useMemo(() => 
     allocations.reduce((sum, a) => sum + a.hours, 0),
@@ -181,28 +218,59 @@ export default function AllocationPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 fade-in overflow-auto">
+    <div className="space-y-4 sm:space-y-6 fade-in overflow-auto">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold">Painel de Alocação</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-bold">Painel de Alocação</h1>
             {selectedTeam && (
               <span className={cn("px-2 py-1 rounded text-xs text-white", selectedTeam.color)}>
                 {selectedTeam.name}
               </span>
             )}
           </div>
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground hidden sm:block">
             Gerencie a distribuição de recursos ao longo do ano fiscal
           </p>
         </div>
 
-        {/* Seletor de Ano */}
-        <div className="flex items-center gap-2">
+        {/* Ações: Empréstimos e Seletor de Ano */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Botões de Empréstimo */}
+          {selectedTeam && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setRequestLoanModalOpen(true)}
+                className="h-8 sm:h-9"
+              >
+                <UserPlus className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Solicitar</span> Empréstimo
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setManageLoansModalOpen(true)}
+                className="h-8 sm:h-9"
+              >
+                <ArrowLeftRight className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Gerenciar</span> Empréstimos
+                {receivedLoans.length > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {receivedLoans.length}
+                  </Badge>
+                )}
+              </Button>
+            </>
+          )}
+          
+          {/* Seletor de Ano */}
           <Button
             variant="outline"
             size="icon"
+            className="h-8 w-8 sm:h-9 sm:w-9"
             onClick={() => setSelectedYear(y => Math.max(availableYears[0], y - 1))}
             disabled={selectedYear <= availableYears[0]}
           >
@@ -212,8 +280,8 @@ export default function AllocationPage() {
             value={selectedYear.toString()}
             onValueChange={(value) => setSelectedYear(parseInt(value))}
           >
-            <SelectTrigger className="w-[100px]">
-              <Calendar className="h-4 w-4 mr-2" />
+            <SelectTrigger className="w-[90px] sm:w-[100px] h-8 sm:h-9">
+              <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -227,6 +295,7 @@ export default function AllocationPage() {
           <Button
             variant="outline"
             size="icon"
+            className="h-8 w-8 sm:h-9 sm:w-9"
             onClick={() => setSelectedYear(y => Math.min(availableYears[availableYears.length - 1], y + 1))}
             disabled={selectedYear >= availableYears[availableYears.length - 1]}
           >
@@ -236,54 +305,54 @@ export default function AllocationPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="p-3 rounded-lg bg-primary/10">
-              <Users className="w-5 h-5 text-primary" />
+          <CardContent className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4">
+            <div className="p-2 sm:p-3 rounded-lg bg-primary/10">
+              <Users className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Recursos</p>
-              <p className="text-2xl font-bold">{teamEmployees.length}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Recursos</p>
+              <p className="text-lg sm:text-2xl font-bold">{teamEmployees.length}</p>
               {guestEmployees.length > 0 && (
-                <p className="text-xs text-muted-foreground">+{guestEmployees.length} emprestados</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">+{guestEmployees.length} emprestados</p>
               )}
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="p-3 rounded-lg bg-chart-2/10">
-              <Briefcase className="w-5 h-5 text-chart-2" />
+          <CardContent className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4">
+            <div className="p-2 sm:p-3 rounded-lg bg-chart-2/10">
+              <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-chart-2" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Demandas</p>
-              <p className="text-2xl font-bold">{teamDemands.length}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Demandas</p>
+              <p className="text-lg sm:text-2xl font-bold">{teamDemands.length}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="p-3 rounded-lg bg-chart-3/10">
-              <Clock className="w-5 h-5 text-chart-3" />
+          <CardContent className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4">
+            <div className="p-2 sm:p-3 rounded-lg bg-chart-3/10">
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-chart-3" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Horas Alocadas</p>
-              <p className="text-2xl font-bold">{totalHoursAllocated}h</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Horas Alocadas</p>
+              <p className="text-lg sm:text-2xl font-bold">{totalHoursAllocated}h</p>
               {loanAllocationsCount > 0 && (
-                <p className="text-xs text-purple-500">{loanAllocationsCount} empréstimos</p>
+                <p className="text-[10px] sm:text-xs text-purple-500">{loanAllocationsCount} empréstimos</p>
               )}
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="p-3 rounded-lg bg-destructive/10">
-              <AlertTriangle className="w-5 h-5 text-destructive" />
+          <CardContent className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4">
+            <div className="p-2 sm:p-3 rounded-lg bg-destructive/10">
+              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-destructive" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Totalmente Alocado</p>
-              <p className="text-2xl font-bold">{overloadedCount}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Totalmente Alocado</p>
+              <p className="text-lg sm:text-2xl font-bold">{overloadedCount}</p>
             </div>
           </CardContent>
         </Card>
@@ -291,13 +360,13 @@ export default function AllocationPage() {
 
       {/* Timeline Grid */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Timeline de Alocação - {selectedYear}</CardTitle>
-          <p className="text-sm text-muted-foreground">
+        <CardHeader className="p-3 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Timeline de Alocação - {selectedYear}</CardTitle>
+          <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
             Capacidade calculada automaticamente baseada em dias úteis (excluindo fins de semana e feriados)
           </p>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <TimelineGrid
             employees={teamEmployees}
             demands={teamDemands}
@@ -311,6 +380,26 @@ export default function AllocationPage() {
           />
         </CardContent>
       </Card>
+
+      {/* Modais de Empréstimo */}
+      {selectedTeam && (
+        <>
+          <RequestLoanModal
+            open={requestLoanModalOpen}
+            onClose={() => setRequestLoanModalOpen(false)}
+            targetDepartmentId={selectedTeam.id}
+            targetDepartmentName={selectedTeam.name}
+            onLoanCreated={handleLoanChanged}
+          />
+          <ManageLoansModal
+            open={manageLoansModalOpen}
+            onClose={() => setManageLoansModalOpen(false)}
+            departmentId={selectedTeam.id}
+            departmentName={selectedTeam.name}
+            onLoanChanged={handleLoanChanged}
+          />
+        </>
+      )}
     </div>
   );
 }
