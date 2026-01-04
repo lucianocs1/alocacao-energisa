@@ -14,11 +14,11 @@ interface EmployeeCardProps {
 }
 
 export function EmployeeCard({ employee, onEdit }: EmployeeCardProps) {
-  const { getMonthCapacity } = useCalendar();
+  const currentDate = new Date();
+  const { getMonthCapacity } = useCalendar(currentDate.getFullYear());
   const { getTeamById, getTeamColor } = useTeam();
   
   // Get current month capacity
-  const currentDate = new Date();
   const currentCapacity = getMonthCapacity(currentDate.getMonth(), currentDate.getFullYear(), employee);
   const totalFixedHours = employee.fixedAllocations.reduce((sum, f) => sum + f.hoursPerMonth, 0);
   const availableHours = currentCapacity.availableHours;

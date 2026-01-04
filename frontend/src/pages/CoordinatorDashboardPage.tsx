@@ -124,9 +124,7 @@ export default function CoordinatorDashboardPage() {
       <div className="flex items-center gap-2">
         <div className={cn("w-3 h-3 rounded-full", selectedTeam.color)} />
         <span className="font-medium">{selectedTeam.name}</span>
-        <Badge variant="outline" className="ml-2">
-          {dashboardData?.employees.length || 0} colaboradores
-        </Badge>
+
       </div>
 
       {isLoading ? (

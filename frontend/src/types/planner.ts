@@ -119,13 +119,14 @@ export interface Demand {
 export interface Allocation {
   id: string;
   employeeId: string;
-  demandId: string;       // Agora referencia Demand em vez de Project
+  demandId: string;       // Agora referencia Demand em vez de Project (ou ID especial para férias/treinamento)
   projectId: string;      // Referência ao projeto pai para facilitar queries
   month: number; // 0-11
   year: number;
   hours: number;
   isLoan?: boolean; // Marcado quando funcionário é emprestado de outra equipe
   sourceTeamId?: string; // Equipe de origem do empréstimo
+  allocationType?: string; // Tipo especial: VACATION, TRAINING, etc.
 }
 
 export interface Holiday {

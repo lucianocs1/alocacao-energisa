@@ -5,7 +5,7 @@ import { AllocationBlock } from './AllocationBlock';
 import { getPhaseForMonth } from './GanttBar';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Umbrella, UserPlus, ExternalLink } from 'lucide-react';
+import { Plus, Umbrella, UserPlus, ExternalLink, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -19,6 +19,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
+  SelectSeparator,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,10 +30,31 @@ import { useCalendar } from '@/hooks/useCalendar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTeam } from '@/contexts/TeamContext';
 
+// IDs especiais para tipos de alocação que não são demandas
+export const SPECIAL_ALLOCATION_TYPES = {
+  VACATION: '__VACATION__',
+  TRAINING: '__TRAINING__',
+} as const;
+
+// Configuração dos tipos especiais
+export const SPECIAL_ALLOCATION_CONFIG = {
+  [SPECIAL_ALLOCATION_TYPES.VACATION]: {
+    label: 'Férias',
+    color: '#f97316', // orange
+    icon: Umbrella,
+  },
+  [SPECIAL_ALLOCATION_TYPES.TRAINING]: {
+    label: 'Treinamento',
+    color: '#8b5cf6', // purple
+    icon: GraduationCap,
+  },
+} as const;
+
 interface TimelineGridProps {
   employees: Employee[];
   demands: Demand[];
   allocations: Allocation[];
+  year: number; // Ano para exibição e alocação
   guestEmployees?: Employee[]; // Employees borrowed from other teams
   allEmployees?: Employee[];   // All employees for borrowing functionality
   onAddAllocation: (allocation: Omit<Allocation, 'id'>) => void;
@@ -42,6 +66,7 @@ export function TimelineGrid({
   employees, 
   demands, 
   allocations,
+  year,
   guestEmployees = [],
   allEmployees = [],
   onAddAllocation,
@@ -55,9 +80,8 @@ export function TimelineGrid({
   const [guestDialogOpen, setGuestDialogOpen] = useState(false);
   const [selectedGuestEmployee, setSelectedGuestEmployee] = useState<string>('');
 
-  const { getMonthCapacity, getMonthInfo } = useCalendar();
+  const { getMonthCapacity, getMonthInfo } = useCalendar(year);
   const { selectedTeam, getTeamById, getTeamColor } = useTeam();
-  const year = 2024;
 
   // Combine team employees with guest employees
   const combinedEmployees = useMemo(() => {
@@ -116,52 +140,78 @@ export function TimelineGrid({
     }
 
     const employee = combinedEmployees.find(e => e.id === selectedCell.employeeId);
-    const demand = demands.find(d => d.id === selectedDemandId);
-    
-    if (!employee || !demand) return;
+    if (!employee) return;
 
     const monthData = getEmployeeMonthData(employee, selectedCell.month);
     const newTotal = monthData.totalAllocated + hoursNum;
     const available = monthData.capacity.availableHours;
     const monthInfo = getMonthInfo(selectedCell.month, year);
 
-    // Check if this is a loan (employee from different team than the demand)
-    const isLoan = employee.teamId !== demand.teamId;
-
-    // Check phase for the selected month
-    const phaseForMonth = getPhaseForMonth(demand.phases, selectedCell.month, year);
+    // Verificar se é um tipo especial (férias ou treinamento)
+    const isSpecialType = Object.values(SPECIAL_ALLOCATION_TYPES).includes(selectedDemandId as any);
     
-    // Alert for Go-Live period
-    if (phaseForMonth?.isMilestone || phaseForMonth?.type === 'go-live') {
-      toast.warning(
-        `⚠️ ATENÇÃO: ${MONTHS[selectedCell.month]} é período de GO-LIVE! ` +
-        `Certifique-se de que o recurso estará 100% disponível. Férias não recomendadas.`,
-        { duration: 6000 }
-      );
+    // Para tipos especiais, usar IDs e projectId especiais
+    let demandId = selectedDemandId;
+    let projectId = selectedDemandId; // Para tipos especiais, projectId = demandId
+    let isLoan = false;
+    let allocationName = '';
+
+    if (isSpecialType) {
+      const config = SPECIAL_ALLOCATION_CONFIG[selectedDemandId as keyof typeof SPECIAL_ALLOCATION_CONFIG];
+      allocationName = config?.label || 'Alocação';
+    } else {
+      // É uma demanda normal
+      const demand = demands.find(d => d.id === selectedDemandId);
+      if (!demand) {
+        toast.error('Demanda não encontrada');
+        return;
+      }
+      
+      projectId = demand.projectId;
+      allocationName = demand.name;
+      
+      // Check if this is a loan (employee from different team than the demand)
+      isLoan = employee.teamId !== demand.teamId;
+
+      // Check phase for the selected month
+      const phaseForMonth = getPhaseForMonth(demand.phases, selectedCell.month, year);
+      
+      // Alert for Go-Live period
+      if (phaseForMonth?.isMilestone || phaseForMonth?.type === 'go-live') {
+        toast.warning(
+          `⚠️ ATENÇÃO: ${MONTHS[selectedCell.month]} é período de GO-LIVE! ` +
+          `Certifique-se de que o recurso estará 100% disponível. Férias não recomendadas.`,
+          { duration: 6000 }
+        );
+      }
+
+      // Alert for Assisted Operation (less hours needed)
+      if (phaseForMonth?.type === 'assisted-operation' && hoursNum > available * 0.5) {
+        toast.info(
+          `💡 Dica: ${MONTHS[selectedCell.month]} é período de Operação Assistida. ` +
+          `Geralmente requer menos horas (suporte). Você alocou ${hoursNum}h.`,
+          { duration: 5000 }
+        );
+      }
     }
 
-    // Alert for Assisted Operation (less hours needed)
-    if (phaseForMonth?.type === 'assisted-operation' && hoursNum > available * 0.5) {
-      toast.info(
-        `💡 Dica: ${MONTHS[selectedCell.month]} é período de Operação Assistida. ` +
-        `Geralmente requer menos horas (suporte). Você alocou ${hoursNum}h.`,
-        { duration: 5000 }
-      );
-    }
-
+    // BLOQUEAR alocação quando excede horas disponíveis
     if (newTotal > available) {
       const excess = newTotal - available;
-      toast.warning(
-        `Atenção: ${MONTHS[selectedCell.month]} tem apenas ${monthInfo.workingDays} dias úteis (${available}h disponíveis). ` +
-        `Você está alocando ${excess}h extras. Considerar hora extra ou banco?`,
-        { duration: 5000 }
+      const remainingAvailable = available - monthData.totalAllocated;
+      toast.error(
+        `Não é possível alocar ${hoursNum}h. ${MONTHS[selectedCell.month]} tem apenas ${remainingAvailable}h disponíveis ` +
+        `(${monthInfo.workingDays} dias úteis × ${employee.dailyHours || 8}h - ${monthData.blockedHours}h bloqueadas). ` +
+        `Excesso: ${excess}h.`,
+        { duration: 6000 }
       );
+      return;
     }
 
     onAddAllocation({
       employeeId: selectedCell.employeeId,
-      demandId: selectedDemandId,
-      projectId: demand.projectId,
+      demandId: demandId,
+      projectId: projectId,
       month: selectedCell.month,
       year,
       hours: hoursNum,
@@ -170,7 +220,7 @@ export function TimelineGrid({
     });
 
     const employeeTeam = getTeamById(employee.teamId);
-    toast.success(`${hoursNum}h alocadas para ${demand.name}${isLoan ? ` (empréstimo de ${employeeTeam?.name})` : ''}`);
+    toast.success(`${hoursNum}h alocadas para ${allocationName}${isLoan ? ` (empréstimo de ${employeeTeam?.name})` : ''}`);
     setDialogOpen(false);
     setSelectedCell(null);
     setSelectedDemandId('');
@@ -271,6 +321,43 @@ export function TimelineGrid({
                     {/* Allocations displayed side by side */}
                     <div className="flex flex-row flex-wrap gap-1">
                       {monthData.allocations.map(alloc => {
+                        // Verificar se é um tipo especial
+                        const isSpecialType = Object.values(SPECIAL_ALLOCATION_TYPES).includes(alloc.demandId as any);
+                        
+                        if (isSpecialType) {
+                          const config = SPECIAL_ALLOCATION_CONFIG[alloc.demandId as keyof typeof SPECIAL_ALLOCATION_CONFIG];
+                          const IconComponent = config?.icon;
+                          
+                          return (
+                            <AllocationBlock
+                              key={alloc.id}
+                              demand={{
+                                id: alloc.demandId,
+                                name: config?.label || 'Alocação',
+                                projectId: alloc.projectId,
+                                teamId: '',
+                                startDate: new Date(),
+                                endDate: new Date(),
+                                phases: [],
+                                totalHours: 0,
+                                allocatedHours: 0,
+                                status: 'allocated',
+                                createdAt: new Date(),
+                              }}
+                              project={{
+                                id: alloc.projectId,
+                                name: config?.label || 'Alocação',
+                                color: config?.color || '#888',
+                              }}
+                              hours={alloc.hours}
+                              isLoan={false}
+                              isSpecial={true}
+                              specialIcon={IconComponent}
+                              onRemove={() => onRemoveAllocation(alloc.id)}
+                            />
+                          );
+                        }
+                        
                         const demand = demands.find(d => d.id === alloc.demandId);
                         if (!demand) return null;
                         
@@ -394,55 +481,135 @@ export function TimelineGrid({
           </DialogHeader>
           {selectedCell && (
             <div className="space-y-4 pt-4">
-              <div className="p-3 rounded-lg bg-muted/50">
-                <p className="text-sm">
-                  <span className="text-muted-foreground">Mês:</span>{' '}
-                  <span className="font-medium">{MONTHS[selectedCell.month]} {year}</span>
-                </p>
-                {(() => {
-                  const monthInfo = getMonthInfo(selectedCell.month, year);
-                  return (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {monthInfo.workingDays} dias úteis • {monthInfo.totalHours}h de capacidade base
-                    </p>
-                  );
-                })()}
-              </div>
-              <div className="space-y-2">
-                <Label>Demanda</Label>
-                <Select value={selectedDemandId} onValueChange={setSelectedDemandId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma demanda" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {demands.map(demand => {
-                      return (
-                        <SelectItem key={demand.id} value={demand.id}>
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: demand._projectColor || '#888' }}
-                            />
-                            <span className="truncate">{demand.name}</span>
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Horas</Label>
-                <Input
-                  type="number"
-                  placeholder="Ex: 40"
-                  value={hours}
-                  onChange={(e) => setHours(e.target.value)}
-                />
-              </div>
-              <Button onClick={handleAddAllocation} className="w-full">
-                Adicionar Alocação
-              </Button>
+              {(() => {
+                const employee = combinedEmployees.find(e => e.id === selectedCell.employeeId);
+                const monthData = employee ? getEmployeeMonthData(employee, selectedCell.month) : null;
+                const monthInfo = getMonthInfo(selectedCell.month, year);
+                const availableHours = monthData?.capacity.availableHours ?? 0;
+                const alreadyAllocated = monthData?.totalAllocated ?? 0;
+                const remainingHours = Math.max(0, availableHours - alreadyAllocated);
+                
+                return (
+                  <>
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <p className="text-sm">
+                        <span className="text-muted-foreground">Recurso:</span>{' '}
+                        <span className="font-medium">{employee?.name}</span>
+                      </p>
+                      <p className="text-sm">
+                        <span className="text-muted-foreground">Mês:</span>{' '}
+                        <span className="font-medium">{MONTHS[selectedCell.month]} {year}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {monthInfo.workingDays} dias úteis • {monthInfo.totalHours}h de capacidade base
+                      </p>
+                    </div>
+                    
+                    {/* Resumo de disponibilidade */}
+                    <div className={cn(
+                      "p-3 rounded-lg border",
+                      remainingHours <= 0 ? "bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800" : 
+                      remainingHours < 20 ? "bg-yellow-50 border-yellow-200 dark:bg-yellow-950/20 dark:border-yellow-800" :
+                      "bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800"
+                    )}>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Capacidade disponível:</span>
+                        <span className="font-medium">{availableHours}h</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Já alocado:</span>
+                        <span className="font-medium">{alreadyAllocated}h</span>
+                      </div>
+                      <div className="flex justify-between text-sm font-bold pt-1 border-t mt-1">
+                        <span className={remainingHours <= 0 ? "text-red-600" : remainingHours < 20 ? "text-yellow-600" : "text-green-600"}>
+                          Horas restantes:
+                        </span>
+                        <span className={remainingHours <= 0 ? "text-red-600" : remainingHours < 20 ? "text-yellow-600" : "text-green-600"}>
+                          {remainingHours}h
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Tipo de Alocação</Label>
+                      <Select value={selectedDemandId} onValueChange={setSelectedDemandId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o tipo de alocação" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {/* Demandas primeiro */}
+                          {demands.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel className="text-xs text-muted-foreground">Demandas</SelectLabel>
+                              {demands.map(demand => {
+                                return (
+                                  <SelectItem key={demand.id} value={demand.id}>
+                                    <div className="flex items-center gap-2">
+                                      <div 
+                                        className="w-3 h-3 rounded-full" 
+                                        style={{ backgroundColor: demand._projectColor || '#888' }}
+                                      />
+                                      <span className="truncate">{demand.name}</span>
+                                    </div>
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectGroup>
+                          )}
+                          
+                          {demands.length > 0 && <SelectSeparator />}
+                          
+                          {/* Opções especiais */}
+                          <SelectGroup>
+                            <SelectLabel className="text-xs text-muted-foreground">Ausências</SelectLabel>
+                            <SelectItem value={SPECIAL_ALLOCATION_TYPES.VACATION}>
+                              <div className="flex items-center gap-2">
+                                <Umbrella className="w-3 h-3 text-orange-500" />
+                                <span>Férias</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value={SPECIAL_ALLOCATION_TYPES.TRAINING}>
+                              <div className="flex items-center gap-2">
+                                <GraduationCap className="w-3 h-3 text-purple-500" />
+                                <span>Treinamento</span>
+                              </div>
+                            </SelectItem>
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>
+                        Horas 
+                        <span className="text-muted-foreground font-normal ml-1">
+                          (máx: {remainingHours}h)
+                        </span>
+                      </Label>
+                      <Input
+                        type="number"
+                        placeholder={`Ex: ${Math.min(40, remainingHours)}`}
+                        value={hours}
+                        onChange={(e) => setHours(e.target.value)}
+                        max={remainingHours}
+                        min={1}
+                        className={parseInt(hours) > remainingHours ? "border-red-500 focus-visible:ring-red-500" : ""}
+                      />
+                      {parseInt(hours) > remainingHours && (
+                        <p className="text-xs text-red-500">
+                          Excede o limite disponível em {parseInt(hours) - remainingHours}h
+                        </p>
+                      )}
+                    </div>
+                    <Button 
+                      onClick={handleAddAllocation} 
+                      className="w-full"
+                      disabled={remainingHours <= 0 || !hours || parseInt(hours) <= 0 || parseInt(hours) > remainingHours}
+                    >
+                      Adicionar Alocação
+                    </Button>
+                  </>
+                );
+              })()}
             </div>
           )}
         </DialogContent>

@@ -4,12 +4,20 @@ import { allocationService, AllocationPageData } from '@/services/allocationServ
 import { employeeService } from '@/services/employeeService';
 import { Allocation, Employee, Demand } from '@/types/planner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Briefcase, Clock, AlertTriangle, Calendar, Loader2 } from 'lucide-react';
+import { Users, Briefcase, Clock, AlertTriangle, Calendar, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCalendar } from '@/hooks/useCalendar';
 import { Badge } from '@/components/ui/badge';
 import { useTeam } from '@/contexts/TeamContext';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export default function AllocationPage() {
   const [pageData, setPageData] = useState<AllocationPageData | null>(null);
@@ -17,17 +25,22 @@ export default function AllocationPage() {
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]); // Todos os funcionários para empréstimo
   const [guestEmployees, setGuestEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
-  const { getMonthCapacity, holidays } = useCalendar();
+  const { getMonthCapacity, holidays } = useCalendar(selectedYear);
   const { selectedTeam } = useTeam();
 
-  const currentYear = new Date().getFullYear();
+  // Anos disponíveis para seleção (ano atual -1 até +2)
+  const availableYears = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return [currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
+  }, []);
 
   // Carregar dados da página
   const loadPageData = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await allocationService.getPageData(selectedTeam?.id, currentYear);
+      const data = await allocationService.getPageData(selectedTeam?.id, selectedYear);
       setPageData(data);
       setAllocations(data.allocations);
 
@@ -42,7 +55,7 @@ export default function AllocationPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedTeam?.id, currentYear]);
+  }, [selectedTeam?.id, selectedYear]);
 
   useEffect(() => {
     loadPageData();
@@ -147,9 +160,9 @@ export default function AllocationPage() {
       const empAllocations = allocations.filter(a => a.employeeId === emp.id);
       
       for (let month = 0; month < 12; month++) {
-        const monthAllocations = empAllocations.filter(a => a.month === month && a.year === currentYear);
+        const monthAllocations = empAllocations.filter(a => a.month === month && a.year === selectedYear);
         const totalForMonth = monthAllocations.reduce((s, a) => s + a.hours, 0);
-        const capacity = getMonthCapacity(month, currentYear, emp);
+        const capacity = getMonthCapacity(month, selectedYear, emp);
         
         if (totalForMonth > capacity.availableHours) {
           return true;
@@ -157,7 +170,7 @@ export default function AllocationPage() {
       }
       return false;
     }).length;
-  }, [teamEmployees, allocations, currentYear, getMonthCapacity]);
+  }, [teamEmployees, allocations, selectedYear, getMonthCapacity]);
 
   if (loading) {
     return (
@@ -184,10 +197,42 @@ export default function AllocationPage() {
             Gerencie a distribuição de recursos ao longo do ano fiscal
           </p>
         </div>
-        <Badge variant="outline" className="flex items-center gap-2">
-          <Calendar className="w-4 h-4" />
-          {holidays.length} feriados
-        </Badge>
+
+        {/* Seletor de Ano */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setSelectedYear(y => Math.max(availableYears[0], y - 1))}
+            disabled={selectedYear <= availableYears[0]}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Select
+            value={selectedYear.toString()}
+            onValueChange={(value) => setSelectedYear(parseInt(value))}
+          >
+            <SelectTrigger className="w-[100px]">
+              <Calendar className="h-4 w-4 mr-2" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableYears.map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setSelectedYear(y => Math.min(availableYears[availableYears.length - 1], y + 1))}
+            disabled={selectedYear >= availableYears[availableYears.length - 1]}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -237,7 +282,7 @@ export default function AllocationPage() {
               <AlertTriangle className="w-5 h-5 text-destructive" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Sobrecarregados</p>
+              <p className="text-sm text-muted-foreground">Totalmente Alocado</p>
               <p className="text-2xl font-bold">{overloadedCount}</p>
             </div>
           </CardContent>
@@ -247,7 +292,7 @@ export default function AllocationPage() {
       {/* Timeline Grid */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Timeline de Alocação</CardTitle>
+          <CardTitle className="text-lg">Timeline de Alocação - {selectedYear}</CardTitle>
           <p className="text-sm text-muted-foreground">
             Capacidade calculada automaticamente baseada em dias úteis (excluindo fins de semana e feriados)
           </p>
@@ -257,6 +302,7 @@ export default function AllocationPage() {
             employees={teamEmployees}
             demands={teamDemands}
             allocations={allocations}
+            year={selectedYear}
             guestEmployees={guestEmployees}
             allEmployees={allEmployees}
             onAddAllocation={handleAddAllocation}

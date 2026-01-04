@@ -24,7 +24,7 @@ import {
 
 export default function TeamPage() {
   const { selectedTeam } = useTeam();
-  const { getMonthCapacity } = useCalendar();
+  const { getMonthCapacity } = useCalendar(new Date().getFullYear());
   const { toast } = useToast();
   
   const [employees, setEmployees] = useState<Employee[]>([]);

@@ -64,7 +64,7 @@ public class AllocationService : IAllocationService
             var employeeIds = employees.Select(e => e.Id).ToHashSet();
             var demandIds = demands.Select(d => d.Id).ToHashSet();
             allocationsQuery = allocationsQuery.Where(a => 
-                employeeIds.Contains(a.EmployeeId) || demandIds.Contains(a.DemandId));
+                employeeIds.Contains(a.EmployeeId) || (a.DemandId.HasValue && demandIds.Contains(a.DemandId.Value)));
         }
 
         var allocations = await allocationsQuery.ToListAsync();
@@ -101,7 +101,7 @@ public class AllocationService : IAllocationService
         {
             query = query.Where(a => 
                 a.Employee.DepartmentId == teamId.Value || 
-                a.Demand.TeamId == teamId.Value);
+                (a.Demand != null && a.Demand.TeamId == teamId.Value));
         }
 
         if (employeeId.HasValue)
@@ -137,12 +137,28 @@ public class AllocationService : IAllocationService
 
     public async Task<AllocationDto> CreateAllocationAsync(CreateAllocationRequest request)
     {
-        // Verificar se já existe uma alocação para este funcionário/demanda/mês/ano
-        var existing = await _context.Allocations.FirstOrDefaultAsync(a =>
-            a.EmployeeId == request.EmployeeId &&
-            a.DemandId == request.DemandId &&
-            a.Month == request.Month &&
-            a.Year == request.Year);
+        // Para alocações especiais (férias, treinamento), usar AllocationType em vez de DemandId
+        var isSpecialAllocation = !string.IsNullOrEmpty(request.AllocationType);
+        
+        // Verificar se já existe uma alocação para este funcionário/demanda ou tipo/mês/ano
+        Allocation? existing;
+        if (isSpecialAllocation)
+        {
+            existing = await _context.Allocations.FirstOrDefaultAsync(a =>
+                a.EmployeeId == request.EmployeeId &&
+                a.AllocationType == request.AllocationType &&
+                a.Month == request.Month &&
+                a.Year == request.Year);
+        }
+        else
+        {
+            existing = await _context.Allocations.FirstOrDefaultAsync(a =>
+                a.EmployeeId == request.EmployeeId &&
+                a.DemandId == request.DemandId &&
+                a.Month == request.Month &&
+                a.Year == request.Year &&
+                a.AllocationType == null);
+        }
 
         if (existing != null)
         {
@@ -158,28 +174,32 @@ public class AllocationService : IAllocationService
         {
             Id = Guid.NewGuid(),
             EmployeeId = request.EmployeeId,
-            DemandId = request.DemandId,
-            ProjectId = request.ProjectId,
+            DemandId = isSpecialAllocation ? null : request.DemandId,
+            ProjectId = isSpecialAllocation ? null : request.ProjectId,
             Month = request.Month,
             Year = request.Year,
             Hours = request.Hours,
             IsLoan = request.IsLoan,
             SourceTeamId = request.SourceTeamId,
+            AllocationType = request.AllocationType,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
         _context.Allocations.Add(allocation);
         
-        // Atualizar horas alocadas na demanda
-        var demand = await _context.Demands.FindAsync(request.DemandId);
-        if (demand != null)
+        // Atualizar horas alocadas na demanda (apenas se não for alocação especial)
+        if (!isSpecialAllocation && request.DemandId.HasValue)
         {
-            demand.AllocatedHours += request.Hours;
-            demand.UpdatedAt = DateTime.UtcNow;
-            
-            // Atualizar status da demanda
-            UpdateDemandStatus(demand);
+            var demand = await _context.Demands.FindAsync(request.DemandId.Value);
+            if (demand != null)
+            {
+                demand.AllocatedHours += request.Hours;
+                demand.UpdatedAt = DateTime.UtcNow;
+                
+                // Atualizar status da demanda
+                UpdateDemandStatus(demand);
+            }
         }
 
         await _context.SaveChangesAsync();
@@ -210,13 +230,16 @@ public class AllocationService : IAllocationService
         allocation.Hours = request.Hours;
         allocation.UpdatedAt = DateTime.UtcNow;
 
-        // Atualizar horas alocadas na demanda
-        var demand = await _context.Demands.FindAsync(allocation.DemandId);
-        if (demand != null)
+        // Atualizar horas alocadas na demanda (apenas se não for alocação especial)
+        if (allocation.DemandId.HasValue)
         {
-            demand.AllocatedHours += hoursDiff;
-            demand.UpdatedAt = DateTime.UtcNow;
-            UpdateDemandStatus(demand);
+            var demand = await _context.Demands.FindAsync(allocation.DemandId);
+            if (demand != null)
+            {
+                demand.AllocatedHours += hoursDiff;
+                demand.UpdatedAt = DateTime.UtcNow;
+                UpdateDemandStatus(demand);
+            }
         }
 
         await _context.SaveChangesAsync();
@@ -229,14 +252,17 @@ public class AllocationService : IAllocationService
         var allocation = await _context.Allocations.FindAsync(id);
         if (allocation == null) return false;
 
-        // Atualizar horas alocadas na demanda
-        var demand = await _context.Demands.FindAsync(allocation.DemandId);
-        if (demand != null)
+        // Atualizar horas alocadas na demanda (apenas se não for alocação especial)
+        if (allocation.DemandId.HasValue)
         {
-            demand.AllocatedHours -= allocation.Hours;
-            if (demand.AllocatedHours < 0) demand.AllocatedHours = 0;
-            demand.UpdatedAt = DateTime.UtcNow;
-            UpdateDemandStatus(demand);
+            var demand = await _context.Demands.FindAsync(allocation.DemandId);
+            if (demand != null)
+            {
+                demand.AllocatedHours -= allocation.Hours;
+                if (demand.AllocatedHours < 0) demand.AllocatedHours = 0;
+                demand.UpdatedAt = DateTime.UtcNow;
+                UpdateDemandStatus(demand);
+            }
         }
 
         _context.Allocations.Remove(allocation);
@@ -300,18 +326,26 @@ public class AllocationService : IAllocationService
             EmployeeId = allocation.EmployeeId,
             EmployeeName = allocation.Employee?.Name ?? string.Empty,
             DemandId = allocation.DemandId,
-            DemandName = allocation.Demand?.Name ?? string.Empty,
+            DemandName = allocation.Demand?.Name ?? GetSpecialAllocationName(allocation.AllocationType),
             ProjectId = allocation.ProjectId,
-            ProjectName = allocation.Project?.Name ?? string.Empty,
+            ProjectName = allocation.Project?.Name ?? GetSpecialAllocationName(allocation.AllocationType),
             Month = allocation.Month,
             Year = allocation.Year,
             Hours = allocation.Hours,
             IsLoan = allocation.IsLoan,
             SourceTeamId = allocation.SourceTeamId,
             SourceTeamName = allocation.SourceTeam?.Name,
+            AllocationType = allocation.AllocationType,
             CreatedAt = allocation.CreatedAt
         };
     }
+
+    private string GetSpecialAllocationName(string? allocationType) => allocationType switch
+    {
+        "VACATION" => "Férias",
+        "TRAINING" => "Treinamento",
+        _ => string.Empty
+    };
 
     private AllocationEmployeeDto MapEmployeeToDto(Employee employee)
     {

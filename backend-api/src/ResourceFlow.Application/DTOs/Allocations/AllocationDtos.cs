@@ -5,13 +5,14 @@ namespace ResourceFlow.Application.DTOs.Allocations;
 public class CreateAllocationRequest
 {
     public Guid EmployeeId { get; set; }
-    public Guid DemandId { get; set; }
-    public Guid ProjectId { get; set; }
+    public Guid? DemandId { get; set; } // Nullable para alocações especiais
+    public Guid? ProjectId { get; set; } // Nullable para alocações especiais
     public int Month { get; set; } // 0-11
     public int Year { get; set; }
     public int Hours { get; set; }
     public bool IsLoan { get; set; }
     public Guid? SourceTeamId { get; set; }
+    public string? AllocationType { get; set; } // null = demanda, "VACATION" = férias, "TRAINING" = treinamento
 }
 
 public class UpdateAllocationRequest
@@ -31,9 +32,9 @@ public class AllocationDto
     public Guid Id { get; set; }
     public Guid EmployeeId { get; set; }
     public string EmployeeName { get; set; } = string.Empty;
-    public Guid DemandId { get; set; }
+    public Guid? DemandId { get; set; }
     public string DemandName { get; set; } = string.Empty;
-    public Guid ProjectId { get; set; }
+    public Guid? ProjectId { get; set; }
     public string ProjectName { get; set; } = string.Empty;
     public int Month { get; set; }
     public int Year { get; set; }
@@ -41,6 +42,7 @@ public class AllocationDto
     public bool IsLoan { get; set; }
     public Guid? SourceTeamId { get; set; }
     public string? SourceTeamName { get; set; }
+    public string? AllocationType { get; set; } // Tipo de alocação especial
     public DateTime CreatedAt { get; set; }
 }
 

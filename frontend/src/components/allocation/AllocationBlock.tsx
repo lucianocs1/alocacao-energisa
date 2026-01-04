@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 import { Demand } from '@/types/planner';
-import { X, ExternalLink } from 'lucide-react';
+import { X, ExternalLink, LucideIcon } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ProjectInfo {
@@ -15,25 +15,31 @@ interface AllocationBlockProps {
   project: ProjectInfo;
   hours: number;
   isLoan?: boolean;
+  isSpecial?: boolean;
+  specialIcon?: LucideIcon;
   onRemove?: () => void;
 }
 
-export function AllocationBlock({ demand, project, hours, isLoan, onRemove }: AllocationBlockProps) {
+export function AllocationBlock({ demand, project, hours, isLoan, isSpecial, specialIcon: SpecialIcon, onRemove }: AllocationBlockProps) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <div 
           className={cn(
             "allocation-block group relative",
-            isLoan && "ring-2 ring-purple-500/50"
+            isLoan && "ring-2 ring-purple-500/50",
+            isSpecial && "ring-2 ring-offset-1"
           )}
           style={{ backgroundColor: project.color }}
         >
+          {isSpecial && SpecialIcon && (
+            <SpecialIcon className="w-3 h-3 text-primary-foreground mr-1" />
+          )}
           <span className="text-primary-foreground truncate">{hours}h</span>
           {isLoan && (
             <ExternalLink className="w-2.5 h-2.5 text-primary-foreground/70 ml-1" />
           )}
-          {project.code && (
+          {!isSpecial && project.code && (
             <span className="text-primary-foreground/70 ml-1 truncate hidden sm:inline">
               {project.code}
             </span>
@@ -59,9 +65,10 @@ export function AllocationBlock({ demand, project, hours, isLoan, onRemove }: Al
       </TooltipTrigger>
       <TooltipContent>
         <p className="font-medium">{demand.name}</p>
-        <p className="text-xs text-muted-foreground">Projeto: {project.name}</p>
+        {!isSpecial && <p className="text-xs text-muted-foreground">Projeto: {project.name}</p>}
         <p className="text-xs text-muted-foreground">{hours}h alocadas</p>
         {isLoan && <p className="text-xs text-purple-400">Recurso emprestado</p>}
+        {isSpecial && <p className="text-xs text-muted-foreground italic">Alocação especial</p>}
       </TooltipContent>
     </Tooltip>
   );

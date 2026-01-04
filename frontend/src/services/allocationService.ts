@@ -7,16 +7,17 @@ interface AllocationDto {
   id: string;
   employeeId: string;
   employeeName: string;
-  demandId: string;
-  demandName: string;
-  projectId: string;
-  projectName: string;
+  demandId?: string | null;
+  demandName?: string | null;
+  projectId?: string | null;
+  projectName?: string | null;
   month: number;
   year: number;
   hours: number;
   isLoan: boolean;
   sourceTeamId?: string;
   sourceTeamName?: string;
+  allocationType?: string | null;
   createdAt: string;
 }
 
@@ -90,13 +91,14 @@ interface AllocationListResponse {
 
 interface CreateAllocationRequest {
   employeeId: string;
-  demandId: string;
-  projectId: string;
+  demandId?: string | null;
+  projectId?: string | null;
   month: number;
   year: number;
   hours: number;
   isLoan: boolean;
   sourceTeamId?: string;
+  allocationType?: string | null; // null = demanda, "VACATION" = férias, "TRAINING" = treinamento
 }
 
 // ========== Exported Types ==========
@@ -114,6 +116,24 @@ export interface AllocationPageData {
   };
 }
 
+// Constantes para tipos especiais de alocação (devem corresponder ao TimelineGrid)
+const SPECIAL_ALLOCATION_TYPES = {
+  VACATION: '__VACATION__',
+  TRAINING: '__TRAINING__',
+} as const;
+
+// Mapeamento de IDs especiais para AllocationType do backend
+const SPECIAL_TYPE_TO_ALLOCATION_TYPE: Record<string, string> = {
+  [SPECIAL_ALLOCATION_TYPES.VACATION]: 'VACATION',
+  [SPECIAL_ALLOCATION_TYPES.TRAINING]: 'TRAINING',
+};
+
+// Mapeamento inverso: AllocationType do backend para IDs especiais do frontend
+const ALLOCATION_TYPE_TO_SPECIAL_ID: Record<string, string> = {
+  'VACATION': SPECIAL_ALLOCATION_TYPES.VACATION,
+  'TRAINING': SPECIAL_ALLOCATION_TYPES.TRAINING,
+};
+
 // ========== Helper Functions ==========
 
 const parseDate = (dateString: string): Date => {
@@ -124,17 +144,25 @@ const parseDate = (dateString: string): Date => {
   return date;
 };
 
-const mapDtoToAllocation = (dto: AllocationDto): Allocation => ({
-  id: dto.id,
-  employeeId: dto.employeeId,
-  demandId: dto.demandId,
-  projectId: dto.projectId,
-  month: dto.month,
-  year: dto.year,
-  hours: dto.hours,
-  isLoan: dto.isLoan,
-  sourceTeamId: dto.sourceTeamId,
-});
+const mapDtoToAllocation = (dto: AllocationDto): Allocation => {
+  // Se tiver allocationType, usar o ID especial correspondente
+  const demandId = dto.allocationType 
+    ? ALLOCATION_TYPE_TO_SPECIAL_ID[dto.allocationType] || dto.demandId || ''
+    : dto.demandId || '';
+  
+  return {
+    id: dto.id,
+    employeeId: dto.employeeId,
+    demandId: demandId,
+    projectId: dto.projectId || '',
+    month: dto.month,
+    year: dto.year,
+    hours: dto.hours,
+    isLoan: dto.isLoan,
+    sourceTeamId: dto.sourceTeamId,
+    allocationType: dto.allocationType || undefined,
+  };
+};
 
 const mapDtoToEmployee = (dto: AllocationEmployeeDto): Employee => ({
   id: dto.id,
@@ -246,15 +274,20 @@ export const allocationService = {
    */
   async createAllocation(allocation: Omit<Allocation, 'id'>): Promise<Allocation | null> {
     try {
+      // Verifica se é um tipo especial de alocação (férias, treinamento, etc.)
+      const isSpecialType = Object.values(SPECIAL_ALLOCATION_TYPES).includes(allocation.demandId as any);
+      const allocationType = isSpecialType ? SPECIAL_TYPE_TO_ALLOCATION_TYPE[allocation.demandId] : null;
+
       const request: CreateAllocationRequest = {
         employeeId: allocation.employeeId,
-        demandId: allocation.demandId,
-        projectId: allocation.projectId,
+        demandId: isSpecialType ? null : allocation.demandId,
+        projectId: isSpecialType ? null : allocation.projectId,
         month: allocation.month,
         year: allocation.year,
         hours: allocation.hours,
         isLoan: allocation.isLoan ?? false,
         sourceTeamId: allocation.sourceTeamId,
+        allocationType: allocationType,
       };
 
       const response = await api.post<AllocationDto>('/api/allocations', request);

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Plus, Trash2, Calendar as CalendarIcon, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, Trash2, Calendar as CalendarIcon, Loader2, AlertCircle, Flag, Building2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,13 +41,15 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTeam } from '@/contexts/TeamContext';
 import calendarService, { CalendarEvent, YearCalendarSummary, CreateCalendarEventRequest } from '@/services/calendarService';
+import { getBrazilianNationalHolidays, getNationalHolidayHoursInYear } from '@/data/brazilianHolidays';
 
 const EVENT_TYPES = [
-  { value: 'Holiday', label: 'Feriado', color: 'bg-red-500' },
+  { value: 'Holiday', label: 'Feriado Municipal', color: 'bg-green-500' },
   { value: 'BridgeDay', label: 'Dia Ponte', color: 'bg-orange-500' },
   { value: 'Recess', label: 'Recesso', color: 'bg-purple-500' },
   { value: 'OptionalDay', label: 'Ponto Facultativo', color: 'bg-blue-500' },
@@ -78,6 +80,15 @@ export default function CalendarPage() {
   });
 
   const isManager = usuario?.role === 'Gerente' || usuario?.role === 'Admin' || usuario?.role === 'Manager' || usuario?.role === '1';
+
+  // Feriados nacionais brasileiros (calculados automaticamente)
+  const nationalHolidays = useMemo(() => {
+    return getBrazilianNationalHolidays(selectedYear);
+  }, [selectedYear]);
+
+  const nationalHolidaysStats = useMemo(() => {
+    return getNationalHolidayHoursInYear(selectedYear);
+  }, [selectedYear]);
 
   const loadData = async () => {
     try {
@@ -161,17 +172,6 @@ export default function CalendarPage() {
     }
   };
 
-  const handleSeedHolidays = async () => {
-    try {
-      await calendarService.seedHolidays(selectedYear);
-      toast.success(`Feriados de ${selectedYear} criados com sucesso`);
-      loadData();
-    } catch (error) {
-      console.error('Erro ao popular feriados:', error);
-      toast.error('Erro ao popular feriados. Pode ser que já existam eventos para este ano.');
-    }
-  };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('pt-BR', {
@@ -215,10 +215,6 @@ export default function CalendarPage() {
 
           {isManager && (
             <>
-              <Button variant="outline" onClick={handleSeedHolidays}>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Popular Feriados
-              </Button>
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
                   <Button onClick={() => handleOpenDialog()}>
@@ -364,179 +360,263 @@ export default function CalendarPage() {
       </div>
 
       {/* Summary Cards */}
-      {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Feriados</CardDescription>
-              <CardTitle className="text-3xl">{summary.totalHolidays}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-500" />
-                <span className="text-xs text-muted-foreground">dias</span>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+        <Card className="border-red-200 bg-red-50/50">
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center gap-1">
+              <Flag className="w-3 h-3" />
+              Feriados Nacionais
+            </CardDescription>
+            <CardTitle className="text-3xl">{nationalHolidaysStats.totalDays}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500" />
+              <span className="text-xs text-muted-foreground">{nationalHolidaysStats.totalHours}h perdidas</span>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Dias Ponte</CardDescription>
-              <CardTitle className="text-3xl">{summary.totalBridgeDays}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-orange-500" />
-                <span className="text-xs text-muted-foreground">dias</span>
-              </div>
-            </CardContent>
-          </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center gap-1">
+              <Building2 className="w-3 h-3" />
+              Feriados Municipais
+            </CardDescription>
+            <CardTitle className="text-3xl">{summary?.totalHolidays || 0}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-green-500" />
+              <span className="text-xs text-muted-foreground">dias</span>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Recesso</CardDescription>
-              <CardTitle className="text-3xl">{summary.totalRecessDays}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-purple-500" />
-                <span className="text-xs text-muted-foreground">dias</span>
-              </div>
-            </CardContent>
-          </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Dias Ponte</CardDescription>
+            <CardTitle className="text-3xl">{summary?.totalBridgeDays || 0}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-orange-500" />
+              <span className="text-xs text-muted-foreground">dias</span>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Ponto Facultativo</CardDescription>
-              <CardTitle className="text-3xl">{summary.totalOptionalDays}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500" />
-                <span className="text-xs text-muted-foreground">dias</span>
-              </div>
-            </CardContent>
-          </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Recesso</CardDescription>
+            <CardTitle className="text-3xl">{summary?.totalRecessDays || 0}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-purple-500" />
+              <span className="text-xs text-muted-foreground">dias</span>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Total de Horas</CardDescription>
-              <CardTitle className="text-3xl">{summary.totalHoursLost}h</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-3 h-3 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">não trabalhadas</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Ponto Facultativo</CardDescription>
+            <CardTitle className="text-3xl">{summary?.totalOptionalDays || 0}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500" />
+              <span className="text-xs text-muted-foreground">dias</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardHeader className="pb-2">
+            <CardDescription>Total de Horas</CardDescription>
+            <CardTitle className="text-3xl">{nationalHolidaysStats.totalHours + (summary?.totalHoursLost || 0)}h</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-3 h-3 text-amber-600" />
+              <span className="text-xs text-muted-foreground">não trabalhadas</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Events Table */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CalendarIcon className="w-5 h-5" />
-            Eventos de {selectedYear}
+            Calendário de {selectedYear}
           </CardTitle>
           <CardDescription>
-            Lista de todos os eventos do calendário corporativo
+            Feriados nacionais são calculados automaticamente. Adicione feriados municipais e outros eventos.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {summary?.events.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Nenhum evento cadastrado para {selectedYear}</p>
-              {isManager && (
-                <p className="text-sm mt-2">
-                  Clique em "Popular Feriados" para adicionar os feriados nacionais
-                </p>
-              )}
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Horas</TableHead>
-                  <TableHead>Escopo</TableHead>
-                  {isManager && <TableHead className="w-[100px]">Ações</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {summary?.events.map((event) => {
-                  const typeConfig = getEventTypeConfig(event.type);
-                  return (
-                    <TableRow key={event.id}>
-                      <TableCell className="font-medium">
-                        {formatDate(event.date)}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p>{event.name}</p>
-                          {event.description && (
-                            <p className="text-xs text-muted-foreground">{event.description}</p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="gap-1">
-                          <div className={`w-2 h-2 rounded-full ${typeConfig.color}`} />
-                          {typeConfig.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{event.hoursLost}h</TableCell>
-                      <TableCell>
-                        {event.isCompanyWide ? (
-                          <Badge variant="outline">Toda empresa</Badge>
-                        ) : (
-                          <Badge variant="outline">{event.departmentName}</Badge>
-                        )}
-                      </TableCell>
-                      {isManager && (
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleOpenDialog(event)}
-                            >
-                              Editar
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm" className="text-destructive">
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Remover evento?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Tem certeza que deseja remover "{event.name}"? Esta ação não pode ser desfeita.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(event.id)}>
-                                    Remover
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
+          <Tabs defaultValue="national" className="w-full">
+            <TabsList className="mb-4">
+              <TabsTrigger value="national" className="gap-2">
+                <Flag className="w-4 h-4" />
+                Feriados Nacionais ({nationalHolidays.length})
+              </TabsTrigger>
+              <TabsTrigger value="custom" className="gap-2">
+                <Building2 className="w-4 h-4" />
+                Outros Eventos ({summary?.events.length || 0})
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="national">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Horas</TableHead>
+                    <TableHead>Dia da Semana</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {nationalHolidays.map((holiday, index) => {
+                    const dayOfWeek = holiday.date.getDay();
+                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                    const weekdayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+                    
+                    return (
+                      <TableRow key={index} className={isWeekend ? 'opacity-50' : ''}>
+                        <TableCell className="font-medium">
+                          {holiday.date.toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: 'short',
+                          })}
                         </TableCell>
-                      )}
+                        <TableCell>{holiday.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="gap-1">
+                            <div className="w-2 h-2 rounded-full bg-red-500" />
+                            Feriado Nacional
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {isWeekend ? (
+                            <span className="text-muted-foreground">-</span>
+                          ) : (
+                            '8h'
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={isWeekend ? 'outline' : 'default'} className={isWeekend ? 'text-muted-foreground' : ''}>
+                            {weekdayNames[dayOfWeek]}
+                            {isWeekend && ' (não afeta)'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TabsContent>
+
+            <TabsContent value="custom">
+              {summary?.events.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>Nenhum evento adicional cadastrado para {selectedYear}</p>
+                  {isManager && (
+                    <p className="text-sm mt-2">
+                      Clique em "Novo Evento" para adicionar feriados municipais, dias ponte ou recessos
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Horas</TableHead>
+                      <TableHead>Escopo</TableHead>
+                      {isManager && <TableHead className="w-[100px]">Ações</TableHead>}
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
+                  </TableHeader>
+                  <TableBody>
+                    {summary?.events.map((event) => {
+                      const typeConfig = getEventTypeConfig(event.type);
+                      return (
+                        <TableRow key={event.id}>
+                          <TableCell className="font-medium">
+                            {formatDate(event.date)}
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p>{event.name}</p>
+                              {event.description && (
+                                <p className="text-xs text-muted-foreground">{event.description}</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="gap-1">
+                              <div className={`w-2 h-2 rounded-full ${typeConfig.color}`} />
+                              {typeConfig.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{event.hoursLost}h</TableCell>
+                          <TableCell>
+                            {event.isCompanyWide ? (
+                              <Badge variant="outline">Toda empresa</Badge>
+                            ) : (
+                              <Badge variant="outline">{event.departmentName}</Badge>
+                            )}
+                          </TableCell>
+                          {isManager && (
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleOpenDialog(event)}
+                                >
+                                  Editar
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="text-destructive">
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Remover evento?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Tem certeza que deseja remover "{event.name}"? Esta ação não pode ser desfeita.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDelete(event.id)}>
+                                        Remover
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

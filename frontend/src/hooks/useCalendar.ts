@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Employee, Holiday, VacationPeriod } from '@/types/planner';
 import { 
   getMonthlyCapacityHours, 
   getVacationHoursInMonth,
   getWorkingDaysInMonth 
 } from '@/lib/calendarEngine';
-import { mockHolidays, calendarConfig } from '@/data/mockData';
+import { calendarConfig } from '@/data/mockData';
+import calendarService, { CalendarEvent } from '@/services/calendarService';
 
 export interface MonthCapacityInfo {
   workingDays: number;
@@ -15,17 +16,54 @@ export interface MonthCapacityInfo {
   availableHours: number;
 }
 
-export function useCalendar() {
-  const [holidays, setHolidays] = useState<Holiday[]>(mockHolidays);
+/**
+ * Converte eventos do calendário do backend para o formato Holiday
+ */
+const convertEventsToHolidays = (events: CalendarEvent[]): Holiday[] => {
+  return events.map(event => ({
+    id: event.id,
+    name: event.name,
+    date: new Date(event.date),
+    type: event.type === 'Holiday' ? 'local' as const : 'local' as const, // Todos são eventos locais/customizados
+  }));
+};
+
+export function useCalendar(year?: number) {
+  const [customHolidays, setCustomHolidays] = useState<Holiday[]>([]);
   const [globalDailyHours] = useState(calendarConfig.dailyHours);
+  const [loading, setLoading] = useState(false);
+
+  // Busca eventos do calendário do backend
+  const loadCalendarEvents = useCallback(async (targetYear: number) => {
+    try {
+      setLoading(true);
+      const response = await calendarService.getEvents(targetYear);
+      const holidays = convertEventsToHolidays(response.events);
+      setCustomHolidays(holidays);
+    } catch (error) {
+      console.error('Erro ao carregar eventos do calendário:', error);
+      // Em caso de erro, usa lista vazia (feriados nacionais ainda funcionam via calendarEngine)
+      setCustomHolidays([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Carrega eventos quando o ano muda
+  useEffect(() => {
+    if (year) {
+      loadCalendarEvents(year);
+    }
+  }, [year, loadCalendarEvents]);
 
   const getMonthCapacity = (
     month: number,
-    year: number,
+    targetYear: number,
     employee: Employee
   ): MonthCapacityInfo => {
     const dailyHours = employee.dailyHours || globalDailyHours;
-    const workingDays = getWorkingDaysInMonth(month, year, holidays);
+    // Passa os feriados customizados - os nacionais são adicionados automaticamente pelo calendarEngine
+    const workingDays = getWorkingDaysInMonth(month, targetYear, customHolidays);
     const totalHours = workingDays * dailyHours;
     
     // Calculate vacation hours for this month
@@ -33,11 +71,11 @@ export function useCalendar() {
     employee.vacations.forEach((vacation: VacationPeriod) => {
       vacationHours += getVacationHoursInMonth(
         month,
-        year,
+        targetYear,
         new Date(vacation.startDate),
         new Date(vacation.endDate),
         dailyHours,
-        holidays
+        customHolidays
       );
     });
     
@@ -58,9 +96,9 @@ export function useCalendar() {
     };
   };
 
-  const getMonthInfo = (month: number, year: number) => {
-    const workingDays = getWorkingDaysInMonth(month, year, holidays);
-    const totalHours = getMonthlyCapacityHours(month, year, globalDailyHours, holidays);
+  const getMonthInfo = (month: number, targetYear: number) => {
+    const workingDays = getWorkingDaysInMonth(month, targetYear, customHolidays);
+    const totalHours = getMonthlyCapacityHours(month, targetYear, globalDailyHours, customHolidays);
     
     return {
       workingDays,
@@ -70,19 +108,21 @@ export function useCalendar() {
 
   const addHoliday = (holiday: Omit<Holiday, 'id'>) => {
     const newHoliday = { ...holiday, id: `hol-${Date.now()}` };
-    setHolidays([...holidays, newHoliday]);
+    setCustomHolidays([...customHolidays, newHoliday]);
   };
 
   const removeHoliday = (id: string) => {
-    setHolidays(holidays.filter(h => h.id !== id));
+    setCustomHolidays(customHolidays.filter(h => h.id !== id));
   };
 
   return {
-    holidays,
+    holidays: customHolidays,
     globalDailyHours,
+    loading,
     getMonthCapacity,
     getMonthInfo,
     addHoliday,
     removeHoliday,
+    refreshCalendar: loadCalendarEvents,
   };
 }

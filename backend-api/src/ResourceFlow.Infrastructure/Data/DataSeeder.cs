@@ -9,6 +9,50 @@ public static class DataSeeder
 {
     public static void Seed(ApplicationDbContext context)
     {
+        // Garantir que os departamentos existam
+        SeedDepartments(context);
+        
+        // Criar usuários padrão
+        SeedUsers(context);
+    }
+
+    private static void SeedDepartments(ApplicationDbContext context)
+    {
+        if (context.Departments.Any())
+        {
+            return;
+        }
+
+        var departments = new List<Department>
+        {
+            new Department
+            {
+                Id = Guid.NewGuid(),
+                Name = "Contábil",
+                Code = "CONT",
+                Description = "Departamento Contábil",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            },
+            new Department
+            {
+                Id = Guid.NewGuid(),
+                Name = "Fiscal",
+                Code = "FISC",
+                Description = "Departamento Fiscal",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            }
+        };
+
+        context.Departments.AddRange(departments);
+        context.SaveChanges();
+    }
+
+    private static void SeedUsers(ApplicationDbContext context)
+    {
         // Verificar se já existem usuários
         if (context.Users.Any())
         {
