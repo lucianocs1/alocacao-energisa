@@ -81,18 +81,39 @@ using (var scope = app.Services.CreateScope())
     
     try
     {
+        logger.LogInformation("Verificando conexão com banco de dados...");
+        
+        // Tentar aplicar migrations
         logger.LogInformation("Aplicando migrations...");
         dbContext.Database.Migrate();
         logger.LogInformation("Migrations aplicadas com sucesso.");
         
+        // Verificar se as tabelas foram criadas antes de executar o seed
+        var tablesExist = dbContext.Database.ExecuteSqlRaw("SELECT 1 FROM \"Departments\" LIMIT 1") >= 0;
+    }
+    catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P01")
+    {
+        // Tabela não existe - tentar criar o banco do zero
+        logger.LogWarning("Tabelas não existem. Tentando criar banco de dados...");
+        dbContext.Database.EnsureCreated();
+        logger.LogInformation("Banco de dados criado com EnsureCreated.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Erro ao aplicar migrations.");
+        throw;
+    }
+    
+    // Executar seed em um bloco separado
+    try
+    {
         logger.LogInformation("Executando seed de dados...");
         DataSeeder.Seed(dbContext);
         logger.LogInformation("Seed executado com sucesso.");
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Erro ao aplicar migrations ou seed.");
-        throw;
+        logger.LogWarning(ex, "Erro ao executar seed (pode ser ignorado se dados já existem).");
     }
 }
 
