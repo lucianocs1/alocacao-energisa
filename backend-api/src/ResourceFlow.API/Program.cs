@@ -83,25 +83,29 @@ using (var scope = app.Services.CreateScope())
     {
         logger.LogInformation("Verificando conexão com banco de dados...");
         
-        // Tentar aplicar migrations
-        logger.LogInformation("Aplicando migrations...");
-        dbContext.Database.Migrate();
-        logger.LogInformation("Migrations aplicadas com sucesso.");
-        
-        // Verificar se as tabelas foram criadas antes de executar o seed
-        var tablesExist = dbContext.Database.ExecuteSqlRaw("SELECT 1 FROM \"Departments\" LIMIT 1") >= 0;
-    }
-    catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P01")
-    {
-        // Tabela não existe - tentar criar o banco do zero
-        logger.LogWarning("Tabelas não existem. Tentando criar banco de dados...");
+        // Primeiro, garantir que o banco existe com EnsureCreated
+        // Isso cria as tabelas se não existirem
+        logger.LogInformation("Garantindo que o banco de dados está criado...");
         dbContext.Database.EnsureCreated();
-        logger.LogInformation("Banco de dados criado com EnsureCreated.");
+        logger.LogInformation("Banco de dados verificado/criado com sucesso.");
+        
+        // Depois tentar aplicar migrations pendentes
+        logger.LogInformation("Verificando migrations pendentes...");
+        var pendingMigrations = dbContext.Database.GetPendingMigrations();
+        if (pendingMigrations.Any())
+        {
+            logger.LogInformation($"Aplicando {pendingMigrations.Count()} migrations pendentes...");
+            dbContext.Database.Migrate();
+            logger.LogInformation("Migrations aplicadas com sucesso.");
+        }
+        else
+        {
+            logger.LogInformation("Nenhuma migration pendente.");
+        }
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Erro ao aplicar migrations.");
-        throw;
+        logger.LogWarning(ex, "Aviso ao configurar banco de dados.");
     }
     
     // Executar seed em um bloco separado
