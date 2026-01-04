@@ -18,9 +18,16 @@ public static class DataSeeder
 
     private static void SeedDepartments(ApplicationDbContext context)
     {
-        if (context.Departments.Any())
+        try
         {
-            return;
+            if (context.Departments.Any())
+            {
+                return;
+            }
+        }
+        catch
+        {
+            // Tabela ainda não existe, continuar com seed
         }
 
         var departments = new List<Department>
@@ -54,9 +61,16 @@ public static class DataSeeder
     private static void SeedUsers(ApplicationDbContext context)
     {
         // Verificar se já existem usuários
-        if (context.Users.Any())
+        try
         {
-            return;
+            if (context.Users.Any())
+            {
+                return;
+            }
+        }
+        catch
+        {
+            // Tabela ainda não existe, continuar com seed
         }
 
         // Obter departamentos existentes
