@@ -83,29 +83,51 @@ using (var scope = app.Services.CreateScope())
     {
         logger.LogInformation("Verificando conexão com banco de dados...");
         
-        // Primeiro, garantir que o banco existe com EnsureCreated
-        // Isso cria as tabelas se não existirem
-        logger.LogInformation("Garantindo que o banco de dados está criado...");
-        dbContext.Database.EnsureCreated();
-        logger.LogInformation("Banco de dados verificado/criado com sucesso.");
-        
-        // Depois tentar aplicar migrations pendentes
-        logger.LogInformation("Verificando migrations pendentes...");
-        var pendingMigrations = dbContext.Database.GetPendingMigrations();
-        if (pendingMigrations.Any())
+        // Verificar se a tabela existe
+        bool tablesExist = false;
+        try
         {
-            logger.LogInformation($"Aplicando {pendingMigrations.Count()} migrations pendentes...");
-            dbContext.Database.Migrate();
-            logger.LogInformation("Migrations aplicadas com sucesso.");
+            var conn = dbContext.Database.GetDbConnection();
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'Departments')";
+            var result = await cmd.ExecuteScalarAsync();
+            tablesExist = result != null && (bool)result;
+            logger.LogInformation($"Tabelas existem: {tablesExist}");
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Erro ao verificar tabelas");
+        }
+        
+        if (!tablesExist)
+        {
+            logger.LogInformation("Tabelas não existem. Criando schema do banco...");
+            
+            // Forçar criação do schema
+            var script = dbContext.Database.GenerateCreateScript();
+            logger.LogInformation("Script de criação gerado.");
+            
+            // Executar o script
+            await dbContext.Database.ExecuteSqlRawAsync(script);
+            logger.LogInformation("Schema criado com sucesso!");
         }
         else
         {
-            logger.LogInformation("Nenhuma migration pendente.");
+            // Tentar aplicar migrations pendentes
+            logger.LogInformation("Verificando migrations pendentes...");
+            var pendingMigrations = dbContext.Database.GetPendingMigrations();
+            if (pendingMigrations.Any())
+            {
+                logger.LogInformation($"Aplicando {pendingMigrations.Count()} migrations pendentes...");
+                await dbContext.Database.MigrateAsync();
+                logger.LogInformation("Migrations aplicadas com sucesso.");
+            }
         }
     }
     catch (Exception ex)
     {
-        logger.LogWarning(ex, "Aviso ao configurar banco de dados.");
+        logger.LogError(ex, "Erro ao configurar banco de dados.");
     }
     
     // Executar seed em um bloco separado
