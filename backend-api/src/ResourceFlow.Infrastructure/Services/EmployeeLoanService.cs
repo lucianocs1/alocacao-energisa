@@ -63,7 +63,8 @@ public class EmployeeLoanService : IEmployeeLoanService
             Notes = request.Notes,
             RequestedByUserId = requestedByUserId,
             Status = LoanStatus.Pending, // Começa como pendente, aguardando aprovação
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
         _context.Set<EmployeeLoan>().Add(loan);
